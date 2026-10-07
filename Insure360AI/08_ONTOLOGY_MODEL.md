@@ -1,62 +1,37 @@
-# Insure360 AI – Ontology Model
+# Insure360 — Ontology Model
 
-## Central Business Entity
-`Customer`
+## Entity concepts
 
-## Entities
-```text
-Customer
-Policy
-Claim
-Payment
-Complaint
-Interaction
-Interaction Insight
-Customer Risk
-Next Best Action
-Customer Decision
-```
+- **Customer** — central business entity.
+- **Policy** — insurance relationship owned by a customer.
+- **Claim** — financial/service event against a policy.
+- **Complaint** — customer service issue, optionally related to a claim.
+- **Payment** — monetary transaction against a customer/policy.
+- **Interaction** — customer contact event.
+- **Interaction Insight** — AI interpretation of an interaction.
+- **Customer Health** — derived condition based on recent AI interaction signals.
+- **Customer Risk** — derived risk score and level.
+- **Intervention** — recommended action and service level.
+- **Premium Exposure** — total premium and estimated premium at risk.
 
 ## Relationships
-```text
-Customer OWNS Policy
-Policy HAS Claim
-Policy HAS Payment
-Customer RAISES Complaint
-Customer HAS Interaction
-Interaction PRODUCES Interaction Insight
-Customer HAS Risk
-Customer RECEIVES Next Best Action
-Customer HAS Customer Decision
-```
-
-## Ontology Traversal Example
-
-Question:
-> Why is customer CUST-1001 high risk?
 
 ```text
 Customer
-  -> Policies
-  -> Claims
-  -> Complaints
-  -> Payments
-  -> Interactions
-  -> Interaction Insights
-  -> Risk Signals
-  -> Risk Score
-  -> Risk Reason
-```
+ ├─ owns → Policy
+ │          ├─ receives → Payment
+ │          └─ generates → Claim
+ │                         └─ may relate to → Complaint
+ ├─ raises → Complaint
+ └─ has → Interaction
+            └─ enriched by → Interaction Insight
 
-Question:
-> Which customers should we prioritize?
-
-```text
 Customer
-  -> Risk
-  -> Next Best Action
-  -> Priority
+ └─ aggregates into → Customer 360
+                       ├─ Health
+                       ├─ Risk
+                       └─ Next Best Action
 ```
 
-## Governance Principle
-The ontology provides a consistent business vocabulary. Risk and action definitions should be implemented in governed analytical objects rather than generated ad hoc by the conversational model.
+## Semantic vocabulary
+The semantic layer exposes the customer entity and selected measures/dimensions from `VW_NEXT_BEST_ACTION`, including risk, premium exposure, customer health, intervention action, and action priority.

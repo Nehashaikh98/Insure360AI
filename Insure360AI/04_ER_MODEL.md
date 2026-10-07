@@ -1,78 +1,37 @@
-# Insure360 AI – ER Model
+# Insure360 — ER Model
 
-## Entities
+## Logical ER model
 
 ```text
 CUSTOMERS
----------
-PK CUSTOMER_ID
-
-POLICIES
---------
-PK POLICY_ID
-FK CUSTOMER_ID
-
-CLAIMS
-------
-PK CLAIM_ID
-FK POLICY_ID
-FK CUSTOMER_ID
-
-COMPLAINTS
-----------
-PK COMPLAINT_ID
-FK CUSTOMER_ID
-
-PAYMENTS
---------
-PK PAYMENT_ID
-FK POLICY_ID
-FK CUSTOMER_ID
-
-INTERACTIONS
-------------
-PK INTERACTION_ID
-FK CUSTOMER_ID
-
-INTERACTION_INSIGHTS
---------------------
-PK INTERACTION_ID
-FK CUSTOMER_ID
-```
-
-## Relationships
-
-```text
-CUSTOMERS 1 ───── N POLICIES
-CUSTOMERS 1 ───── N CLAIMS
-POLICIES  1 ───── N CLAIMS
-
-CUSTOMERS 1 ───── N COMPLAINTS
-CUSTOMERS 1 ───── N PAYMENTS
-POLICIES  1 ───── N PAYMENTS
-
-CUSTOMERS 1 ───── N INTERACTIONS
-INTERACTIONS 1 ── 1 INTERACTION_INSIGHTS
-```
-
-## Derived Layers
-
-```text
-RAW entities
    |
-   +--> VW_CUSTOMER_360
+   +----< POLICIES
+   |        |
+   |        +----< PAYMENTS
+   |        |
+   |        +----< CLAIMS
+   |                 |
+   |                 +----< COMPLAINTS
    |
-   +--> AI.INTERACTION_INSIGHTS
-              |
-              +--> VW_CUSTOMER_INTELLIGENCE
-                         |
-                         +--> Risk Engine
-                         |
-                         +--> VW_NEXT_BEST_ACTION
-                                    |
-                                    +--> VW_CUSTOMER_DECISIONS
-                                               |
-                                               +--> VW_CUSTOMER_SEMANTIC_SOURCE
-                                                          |
-                                                          +--> SV_CUSTOMER_360
+   +----< COMPLAINTS
+   |
+   +----< CUSTOMER_INTERACTIONS
+               |
+               +----< INTERACTION_INSIGHTS
 ```
+
+## Key joins
+
+| Parent | Child | Join |
+|---|---|---|
+| `CUSTOMERS` | `POLICIES` | `CUSTOMER_ID` |
+| `CUSTOMERS` | `CLAIMS` | `CUSTOMER_ID` |
+| `POLICIES` | `CLAIMS` | `POLICY_ID` |
+| `CUSTOMERS` | `COMPLAINTS` | `CUSTOMER_ID` |
+| `CLAIMS` | `COMPLAINTS` | `CLAIM_ID = RELATED_CLAIM_ID` |
+| `CUSTOMERS` | `PAYMENTS` | `CUSTOMER_ID` |
+| `POLICIES` | `PAYMENTS` | `POLICY_ID` |
+| `CUSTOMERS` | `CUSTOMER_INTERACTIONS` | `CUSTOMER_ID` |
+| `CUSTOMER_INTERACTIONS` | `INTERACTION_INSIGHTS` | `INTERACTION_ID` |
+
+The supplied DDL does not declare database-level primary/foreign-key constraints; the keys above are logical relationships used by the analytical SQL.

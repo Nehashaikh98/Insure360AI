@@ -1,81 +1,102 @@
-# Insure360 AI – Data Dictionary
-
-## RAW.CUSTOMERS
-| Column | Type | Description |
-|---|---|---|
-| CUSTOMER_ID | VARCHAR | Unique identifier |
-| CUSTOMER_NAME | VARCHAR | Full customer name |
-| AGE | NUMBER | Customer age |
-| CITY | VARCHAR | Customer city/location |
-| CUSTOMER_SEGMENT | VARCHAR | Business/value segment such as Premium or Standard |
-| JOIN_DATE | DATE | Date customer joined insurer |
-| EMAIL | VARCHAR | Customer email |
-| PHONE | VARCHAR | Customer contact number |
-
-## RAW.POLICIES
-| Column | Type | Description |
-|---|---|---|
-| POLICY_ID | VARCHAR | Unique policy identifier |
-| CUSTOMER_ID | VARCHAR | Customer owning policy |
-| POLICY_TYPE | VARCHAR | Type of insurance policy |
-| PREMIUM_AMOUNT | NUMBER(12,2) | Annual premium |
-| START_DATE | DATE | Policy start date |
-| END_DATE | DATE | Policy end/renewal date |
-| POLICY_STATUS | VARCHAR | ACTIVE, LAPSED or CANCELLED |
+# Insure360 — Data Dictionary
 
 ## RAW.CLAIMS
+
 | Column | Type | Description |
 |---|---|---|
-| CLAIM_ID | VARCHAR | Unique claim identifier |
-| POLICY_ID | VARCHAR | Associated policy |
-| CUSTOMER_ID | VARCHAR | Associated customer |
-| CLAIM_DATE | DATE | Claim submission date |
-| CLAIM_AMOUNT | NUMBER(12,2) | Amount requested |
-| CLAIM_STATUS | VARCHAR | OPEN, APPROVED, REJECTED or CLOSED |
-| CLAIM_REASON | VARCHAR | Claim category/reason |
+| CLAIM_ID | VARCHAR(20) | Claim identifier |
+| POLICY_ID | VARCHAR(20) | Related policy identifier |
+| CUSTOMER_ID | VARCHAR(20) | Related customer identifier |
+| CLAIM_DATE | DATE | Claim date |
+| CLAIM_TYPE | VARCHAR(50) | Claim category/type |
+| CLAIM_AMOUNT | NUMBER(14,2) | Claimed amount |
+| CLAIM_STATUS | VARCHAR(30) | Claim lifecycle status |
+| SETTLEMENT_AMOUNT | NUMBER(14,2) | Settlement amount |
+| SETTLEMENT_DATE | DATE | Settlement date |
+| CLAIM_DESCRIPTION | VARCHAR(500) | Claim description |
 
 ## RAW.COMPLAINTS
+
 | Column | Type | Description |
 |---|---|---|
-| COMPLAINT_ID | VARCHAR | Unique complaint identifier |
-| CUSTOMER_ID | VARCHAR | Customer |
+| COMPLAINT_ID | VARCHAR(20) | Complaint identifier |
+| CUSTOMER_ID | VARCHAR(20) | Related customer |
+| RELATED_CLAIM_ID | VARCHAR(20) | Optional related claim |
 | COMPLAINT_DATE | DATE | Complaint date |
-| COMPLAINT_TYPE | VARCHAR | Complaint category |
-| COMPLAINT_STATUS | VARCHAR | OPEN, IN_PROGRESS or RESOLVED |
-| DESCRIPTION | VARCHAR | Complaint description |
+| CATEGORY | VARCHAR(50) | Complaint category |
+| STATUS | VARCHAR(20) | Complaint status |
+| PRIORITY | VARCHAR(20) | Complaint priority |
+| RESOLUTION_DATE | DATE | Complaint resolution date |
+
+## RAW.CUSTOMERS
+
+| Column | Type | Description |
+|---|---|---|
+| CUSTOMER_ID | VARCHAR(20) | Customer identifier |
+| CUSTOMER_NAME | VARCHAR(100) | Customer name |
+| DATE_OF_BIRTH | DATE | Date of birth |
+| GENDER | VARCHAR(20) | Gender |
+| CITY | VARCHAR(50) | City |
+| REGION | VARCHAR(50) | Region |
+| JOIN_DATE | DATE | Customer join date |
+| CUSTOMER_SEGMENT | VARCHAR(30) | Customer segment |
+| EMAIL | VARCHAR(100) | Email |
+| PHONE | VARCHAR(20) | Phone |
+
+## RAW.CUSTOMER_INTERACTIONS
+
+| Column | Type | Description |
+|---|---|---|
+| INTERACTION_ID | VARCHAR(20) | Interaction identifier |
+| CUSTOMER_ID | VARCHAR(20) | Related customer |
+| INTERACTION_DATE | TIMESTAMP_NTZ(9) | Interaction timestamp |
+| CHANNEL | VARCHAR(20) | Interaction channel |
+| INTERACTION_TYPE | VARCHAR(50) | Interaction type |
+| AGENT_ID | VARCHAR(20) | Agent identifier |
+| CALL_DURATION_SEC | NUMBER(38,0) | Call duration in seconds |
+| TRANSCRIPT | VARCHAR(5000) | Interaction transcript |
+
+## RAW.POLICIES
+
+| Column | Type | Description |
+|---|---|---|
+| POLICY_ID | VARCHAR(20) | Policy identifier |
+| CUSTOMER_ID | VARCHAR(20) | Related customer |
+| POLICY_TYPE | VARCHAR(30) | Policy type |
+| POLICY_START_DATE | DATE | Policy start |
+| POLICY_END_DATE | DATE | Policy end |
+| PREMIUM_AMOUNT | NUMBER(12,2) | Premium amount |
+| COVERAGE_AMOUNT | NUMBER(14,2) | Coverage amount |
+| POLICY_STATUS | VARCHAR(20) | Policy status |
+| PAYMENT_FREQUENCY | VARCHAR(20) | Payment frequency |
 
 ## RAW.PAYMENTS
-| Column | Type | Description |
-|---|---|---|
-| PAYMENT_ID | VARCHAR | Unique payment identifier |
-| POLICY_ID | VARCHAR | Associated policy |
-| CUSTOMER_ID | VARCHAR | Associated customer |
-| DUE_DATE | DATE | Payment due date |
-| PAYMENT_DATE | DATE | Actual payment date |
-| AMOUNT | NUMBER(12,2) | Payment amount |
-| PAYMENT_STATUS | VARCHAR | PAID, PENDING or OVERDUE |
 
-## RAW.INTERACTIONS
 | Column | Type | Description |
 |---|---|---|
-| INTERACTION_ID | VARCHAR | Unique interaction identifier |
-| CUSTOMER_ID | VARCHAR | Customer |
-| INTERACTION_DATE | TIMESTAMP | Interaction date/time |
-| CHANNEL | VARCHAR | CALL, EMAIL or CHAT |
-| TRANSCRIPT | VARCHAR | Unstructured interaction transcript |
-| AGENT_NAME | VARCHAR | Customer-service agent |
-| DURATION_MINUTES | NUMBER | Interaction duration |
+| PAYMENT_ID | VARCHAR(20) | Payment identifier |
+| CUSTOMER_ID | VARCHAR(20) | Related customer |
+| POLICY_ID | VARCHAR(20) | Related policy |
+| DUE_DATE | DATE | Payment due date |
+| PAYMENT_DATE | DATE | Payment date |
+| AMOUNT | NUMBER(12,2) | Payment amount |
+| PAYMENT_STATUS | VARCHAR(20) | Payment status |
+| PAYMENT_METHOD | VARCHAR(30) | Payment method |
 
 ## AI.INTERACTION_INSIGHTS
-| Column | Description |
-|---|---|
-| INTERACTION_ID | Source interaction |
-| CUSTOMER_ID | Related customer |
-| SENTIMENT_SCORE | AI-derived sentiment score |
-| SENTIMENT | AI-derived sentiment |
-| AI_CLASSIFICATION | Classification returned by AI_CLASSIFY |
-| CANCELLATION_SIGNAL | Cancellation/churn intent indicator |
-| URGENCY | AI-derived urgency |
 
-## Analytical Outputs
-`VW_CUSTOMER_360`, `VW_CUSTOMER_INTELLIGENCE`, `VW_NEXT_BEST_ACTION`, `VW_CUSTOMER_DECISIONS`, and `VW_CUSTOMER_SEMANTIC_SOURCE` are customer-grain analytical objects.
+| Column | Type | Description |
+|---|---|---|
+| INTERACTION_ID | VARCHAR(20) | Related interaction |
+| CUSTOMER_ID | VARCHAR(20) | Related customer |
+| SENTIMENT_SCORE | FLOAT | AI sentiment score |
+| SENTIMENT_LABEL | VARCHAR(20) | AI sentiment label |
+| INTENT | VARCHAR(50) | AI-detected intent |
+| URGENCY | VARCHAR(20) | AI-detected urgency |
+| CANCELLATION_INTENT | BOOLEAN | Cancellation signal |
+| INTERACTION_SUMMARY | VARCHAR(1000) | AI interaction summary |
+| PROCESSED_AT | TIMESTAMP_NTZ(9) | Insight processing timestamp |
+| ISSUE_RELATIONSHIP | VARCHAR(30) | Relationship to an issue/lifecycle |
+| RESOLUTION_STATUS | VARCHAR(20) | Resolution state |
+| RESOLVES_INTERACTION_ID | VARCHAR(20) | Interaction resolved by this interaction |
+| RESOLUTION_SUMMARY | VARCHAR(1000) | AI resolution summary |

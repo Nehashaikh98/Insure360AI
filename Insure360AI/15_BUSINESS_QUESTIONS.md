@@ -1,42 +1,38 @@
-# Insure360 AI – Business Questions
+# Insure360 — Business Questions
 
-## Executive Questions
-1. How many customers are high risk?
-2. What percentage of customers are high risk?
-3. How much premium is at risk?
-4. What is the average customer risk score?
-5. How many customers show cancellation intent?
+## Customer health
+1. Which customers are rapidly deteriorating?
+2. Which customers moved from negative to improved sentiment?
+3. Which customers have repeated negative interactions in the last 30 days?
+4. Which customers have high interaction risk velocity?
 
-## Customer Prioritization
-6. Which customers should we prioritize today?
-7. Which customers require immediate intervention?
-8. Which customers require claim escalation?
-9. Which customers need retention calls?
-10. Which customers need service recovery?
+## Risk
+5. How many customers are high, medium, and low risk?
+6. What is the average risk score?
+7. How much premium is associated with high-risk customers?
+8. What are the leading risk reasons?
 
-## Renewal
-11. Which customers have renewal within 30 days?
-12. Which renewing customers are high risk?
-13. Which customers have renewal approaching and negative interactions?
+## Claims and complaints
+9. Which customers have open claims?
+10. Which customers have open complaints?
+11. Which open claims also have high-urgency interactions?
+12. Which customers need service recovery?
 
-## Payment
-14. Which customers have overdue payments?
-15. Which high-value customers have overdue payments?
+## Payments
+13. Which customers have overdue payments?
+14. What is the overdue payment amount?
+15. Which customers should receive payment reminders?
 
-## Cross Sell
-16. What are our cross-sell opportunities?
-17. Which low-risk customers have only one active policy?
-18. Which premium-segment customers are suitable for cross-sell?
+## Retention and renewal
+16. Which customers show cancellation intent?
+17. Which customers require retention calls?
+18. Which low-risk customers are within 30 days of renewal?
 
-## Interaction Intelligence
-19. Which customers have negative interactions?
-20. Which customers show cancellation intent?
-21. Which interactions are high urgency?
-22. Why is a particular customer high risk?
+## Growth
+19. Which healthy low-risk customers have one active policy?
+20. How many cross-sell opportunities exist?
 
-## Combined Questions
-23. Find customers with open claims and cancellation intent.
-24. Find customers with negative sentiment and open complaints.
-25. Which customers should receive a retention call before renewal?
-26. Which customers have both overdue payments and high risk?
-27. Which customers have one active policy, low risk and no open complaint?
+## Executive
+21. What is total premium and estimated premium at risk?
+22. How many customers require critical action?
+23. What are the top recommended interventions?

@@ -1,56 +1,45 @@
-# Insure360 AI – Executive KPIs
+# Insure360 — Executive KPIs
 
-## Customer Portfolio
-- Total Customers
-- Premium Customers
-- Standard Customers
-- Total Active Policies
-- Total Portfolio Premium
+## KPI groups
 
-## Customer Risk
-- High Risk Customers
-- Medium Risk Customers
-- Low Risk Customers
-- Average Risk Score
-- Premium at Risk
+### Customer risk
+- Total customers
+- High-risk customers
+- Medium-risk customers
+- Low-risk customers
+- Average risk score
 
-## Customer Experience
-- Customers with Open Complaints
-- Customers with Open Claims
-- Negative Interaction Count
-- Cancellation Intent Customers
-- High-Urgency Interactions
+### Financial exposure
+- Total premium amount
+- Premium at risk
+- Total estimated premium at risk
 
-## Next Best Action
-- Claim Escalation Customers
-- Retention Customers
-- Cross-Sell Opportunities
-- Payment Reminder Customers
-- Service Recovery Customers
-- Renewal Outreach Customers
-- No Immediate Action Customers
+### Service
+- Customers with open claims
+- Customers with open complaints
+- Service recovery customers
+- Claim escalation customers
 
-## Suggested Executive Dashboard
+### Retention
+- Customers with cancellation intent
+- Retention customers
+- Rapidly deteriorating customers
+- Deteriorating customers
 
-```text
-INSURE360 AI
-Customer Intelligence Command Center
+### Operations
+- Payment reminder customers
+- Renewal outreach customers
+- Customers requiring critical action
+- Customers requiring high-priority action
 
-TOTAL CUSTOMERS       HIGH RISK          PREMIUM AT RISK
-     10,000              248                ₹XX.X M
+## Executive interpretation
+The supplied semantic view is centered on `VW_NEXT_BEST_ACTION`. This makes risk, customer health, intervention, and estimated premium exposure available in a common analytical surface.
 
-OPEN CLAIMS           OPEN COMPLAINTS     CANCELLATION INTENT
-      XXX                  XXX                  XXX
-
-NEXT BEST ACTIONS
------------------------------------------------------------
-CLAIM ESCALATION       RETENTION CALL       CROSS SELL
-       XX                   XX                  XX
-
-SERVICE RECOVERY       PAYMENT REMINDER     RENEWAL
-       XX                   XX                  XX
------------------------------------------------------------
-```
-
-## KPI Governance
-Every KPI should map to the Metric Catalog and semantic layer. Dashboard calculations should not independently redefine governed metrics.
+For an executive dashboard, the recommended primary panels are:
+1. Risk distribution
+2. Premium exposure
+3. Critical/high-priority customer count
+4. Cancellation/retention exposure
+5. Claim and complaint service load
+6. Action mix
+7. Customer health deterioration

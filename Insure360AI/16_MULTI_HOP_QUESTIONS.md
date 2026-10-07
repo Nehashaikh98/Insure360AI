@@ -1,59 +1,47 @@
-# Insure360 AI – Multi-Hop Questions
+# Insure360 — Multi-hop Questions
 
-These questions are designed to demonstrate reasoning across multiple Customer 360 domains.
+These questions intentionally require the assistant to connect multiple entities, analytical views, and/or retrieval context.
 
-## Hop 1 – Customer → Policy → Renewal
-> Which customers have active policies renewing within 30 days?
+1. **Cancellation + claim + health**
+   - Find customers with cancellation signals.
+   - Check whether they have open claims.
+   - Check customer health.
+   - Return customers needing immediate claim escalation.
 
-Expected path:
-Customer → Policy → Renewal date.
+2. **Complaint + interaction evidence**
+   - Find open complaints.
+   - Join to negative interactions.
+   - Retrieve supporting transcript/summary context.
+   - Recommend service recovery.
 
-## Hop 2 – Customer → Claim → Service Risk
-> Which customers have open claims and are high risk?
+3. **Payment + retention**
+   - Find overdue payments.
+   - Check customer risk and cancellation signals.
+   - Prioritize payment reminders for customers with elevated risk.
 
-Expected path:
-Customer → Claim → Risk.
+4. **Renewal + risk**
+   - Find policies expiring within 30 days.
+   - Filter to low-risk customers.
+   - Recommend renewal outreach.
 
-## Hop 3 – Customer → Interaction → Cancellation → Risk
-> Which customers are showing cancellation intent and why are they high risk?
+5. **Interaction lifecycle**
+   - Find a recent interaction.
+   - Identify its previous interaction.
+   - Compare sentiment.
+   - Determine whether the issue was resolved.
 
-Expected path:
-Customer → Interaction → Interaction Insight → Cancellation Signal → Risk Reason.
+6. **Premium exposure**
+   - Aggregate total premium.
+   - Calculate estimated premium at risk from the next-best-action view.
+   - Break exposure down by risk level and recommended intervention.
 
-## Hop 4 – Customer → Complaint → Interaction → Service Recovery
-> Which customers have open complaints and recent negative interactions?
+7. **Executive service recovery**
+   - Count customers with open complaints and negative interactions.
+   - Compare with rapidly deteriorating customers.
+   - Identify the share requiring critical/high-priority action.
 
-Expected path:
-Customer → Complaint + Interaction → Sentiment.
-
-## Hop 5 – Customer → Payment → Risk → Action
-> Which customers have overdue payments and what should we do next?
-
-Expected path:
-Customer → Payment → Risk → Next Best Action.
-
-## Hop 6 – Customer → Claim → Interaction → Cancellation → Action
-> Which customers have unresolved claims, recent cancellation intent and should receive a claim escalation?
-
-Expected path:
-Customer → Claim → Interaction → Cancellation Signal → Next Best Action.
-
-## Hop 7 – Portfolio → Risk → Premium
-> How much premium is at risk and which customers contribute most?
-
-Expected path:
-Portfolio → Customer → Risk → Premium.
-
-## Hop 8 – Customer → Product Opportunity
-> Which low-risk customers with only one active policy are cross-sell opportunities?
-
-Expected path:
-Customer → Policies → Risk → Next Best Action.
-
-## Judge Demonstration
-Use one complex question, then ask:
-1. Why?
-2. What evidence supports that?
-3. What should the business do next?
-
-This demonstrates Customer 360 → AI intelligence → explainable risk → action.
+8. **Claim escalation prioritization**
+   - Find open claims.
+   - Check high-urgency interaction signals.
+   - Check cancellation signals and health deterioration.
+   - Rank by intervention score.

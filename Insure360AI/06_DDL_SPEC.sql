@@ -1,280 +1,1601 @@
--- Insure360 AI – DDL Specification
--- Based on the supplied Insure360 AI data model.
--- Execute in a Snowflake environment with appropriate privileges.
+-- Insure360 DDL and analytical view definitions
+-- Generated from the table DDL and supplied view-definition text.
+-- Note: CUSTOMER_INTERACTIONS appeared twice in the request; it is emitted once here.
 
-CREATE DATABASE IF NOT EXISTS INSURE360_DB;
-
-CREATE SCHEMA IF NOT EXISTS INSURE360_DB.RAW;
-CREATE SCHEMA IF NOT EXISTS INSURE360_DB.AI;
-CREATE SCHEMA IF NOT EXISTS INSURE360_DB.ANALYTICS;
+USE DATABASE INSURE360_DB;
 
 -- =========================
--- RAW TABLES
+-- RAW / AI TABLES
 -- =========================
 
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.CUSTOMERS (
-    CUSTOMER_ID VARCHAR NOT NULL,
-    CUSTOMER_NAME VARCHAR,
-    AGE NUMBER,
-    CITY VARCHAR,
-    CUSTOMER_SEGMENT VARCHAR,
-    JOIN_DATE DATE,
-    EMAIL VARCHAR,
-    PHONE VARCHAR,
-    CONSTRAINT PK_CUSTOMERS PRIMARY KEY (CUSTOMER_ID)
-);
-
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.POLICIES (
-    POLICY_ID VARCHAR NOT NULL,
-    CUSTOMER_ID VARCHAR NOT NULL,
-    POLICY_TYPE VARCHAR,
-    PREMIUM_AMOUNT NUMBER(12,2),
-    START_DATE DATE,
-    END_DATE DATE,
-    POLICY_STATUS VARCHAR,
-    CONSTRAINT PK_POLICIES PRIMARY KEY (POLICY_ID)
-);
-
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.CLAIMS (
-    CLAIM_ID VARCHAR NOT NULL,
-    POLICY_ID VARCHAR,
-    CUSTOMER_ID VARCHAR NOT NULL,
+create or replace TABLE INSURE360_DB.RAW.CLAIMS (
+    CLAIM_ID VARCHAR(20),
+    POLICY_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
     CLAIM_DATE DATE,
-    CLAIM_AMOUNT NUMBER(12,2),
-    CLAIM_STATUS VARCHAR,
-    CLAIM_REASON VARCHAR,
-    CONSTRAINT PK_CLAIMS PRIMARY KEY (CLAIM_ID)
+    CLAIM_TYPE VARCHAR(50),
+    CLAIM_AMOUNT NUMBER(14,2),
+    CLAIM_STATUS VARCHAR(30),
+    SETTLEMENT_AMOUNT NUMBER(14,2),
+    SETTLEMENT_DATE DATE,
+    CLAIM_DESCRIPTION VARCHAR(500)
 );
 
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.COMPLAINTS (
-    COMPLAINT_ID VARCHAR NOT NULL,
-    CUSTOMER_ID VARCHAR NOT NULL,
+create or replace TABLE INSURE360_DB.RAW.COMPLAINTS (
+    COMPLAINT_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
+    RELATED_CLAIM_ID VARCHAR(20),
     COMPLAINT_DATE DATE,
-    COMPLAINT_TYPE VARCHAR,
-    COMPLAINT_STATUS VARCHAR,
-    DESCRIPTION VARCHAR,
-    CONSTRAINT PK_COMPLAINTS PRIMARY KEY (COMPLAINT_ID)
+    CATEGORY VARCHAR(50),
+    STATUS VARCHAR(20),
+    PRIORITY VARCHAR(20),
+    RESOLUTION_DATE DATE
 );
 
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.PAYMENTS (
-    PAYMENT_ID VARCHAR NOT NULL,
-    POLICY_ID VARCHAR,
-    CUSTOMER_ID VARCHAR NOT NULL,
+create or replace TABLE INSURE360_DB.RAW.CUSTOMERS (
+    CUSTOMER_ID VARCHAR(20),
+    CUSTOMER_NAME VARCHAR(100),
+    DATE_OF_BIRTH DATE,
+    GENDER VARCHAR(20),
+    CITY VARCHAR(50),
+    REGION VARCHAR(50),
+    JOIN_DATE DATE,
+    CUSTOMER_SEGMENT VARCHAR(30),
+    EMAIL VARCHAR(100),
+    PHONE VARCHAR(20)
+);
+
+create or replace TABLE INSURE360_DB.RAW.CUSTOMER_INTERACTIONS (
+    INTERACTION_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
+    INTERACTION_DATE TIMESTAMP_NTZ(9),
+    CHANNEL VARCHAR(20),
+    INTERACTION_TYPE VARCHAR(50),
+    AGENT_ID VARCHAR(20),
+    CALL_DURATION_SEC NUMBER(38,0),
+    TRANSCRIPT VARCHAR(5000)
+);
+
+create or replace TABLE INSURE360_DB.RAW.POLICIES (
+    POLICY_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
+    POLICY_TYPE VARCHAR(30),
+    POLICY_START_DATE DATE,
+    POLICY_END_DATE DATE,
+    PREMIUM_AMOUNT NUMBER(12,2),
+    COVERAGE_AMOUNT NUMBER(14,2),
+    POLICY_STATUS VARCHAR(20),
+    PAYMENT_FREQUENCY VARCHAR(20)
+);
+
+create or replace TABLE INSURE360_DB.RAW.PAYMENTS (
+    PAYMENT_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
+    POLICY_ID VARCHAR(20),
     DUE_DATE DATE,
     PAYMENT_DATE DATE,
     AMOUNT NUMBER(12,2),
-    PAYMENT_STATUS VARCHAR,
-    CONSTRAINT PK_PAYMENTS PRIMARY KEY (PAYMENT_ID)
+    PAYMENT_STATUS VARCHAR(20),
+    PAYMENT_METHOD VARCHAR(30)
 );
 
-CREATE OR REPLACE TABLE INSURE360_DB.RAW.INTERACTIONS (
-    INTERACTION_ID VARCHAR NOT NULL,
-    CUSTOMER_ID VARCHAR NOT NULL,
-    INTERACTION_DATE TIMESTAMP,
-    CHANNEL VARCHAR,
-    TRANSCRIPT VARCHAR,
-    AGENT_NAME VARCHAR,
-    DURATION_MINUTES NUMBER,
-    CONSTRAINT PK_INTERACTIONS PRIMARY KEY (INTERACTION_ID)
+create or replace TABLE INSURE360_DB.AI.INTERACTION_INSIGHTS (
+    INTERACTION_ID VARCHAR(20),
+    CUSTOMER_ID VARCHAR(20),
+    SENTIMENT_SCORE FLOAT,
+    SENTIMENT_LABEL VARCHAR(20),
+    INTENT VARCHAR(50),
+    URGENCY VARCHAR(20),
+    CANCELLATION_INTENT BOOLEAN,
+    INTERACTION_SUMMARY VARCHAR(1000),
+    PROCESSED_AT TIMESTAMP_NTZ(9) DEFAULT CURRENT_TIMESTAMP(),
+    ISSUE_RELATIONSHIP VARCHAR(30),
+    RESOLUTION_STATUS VARCHAR(20),
+    RESOLVES_INTERACTION_ID VARCHAR(20),
+    RESOLUTION_SUMMARY VARCHAR(1000)
 );
 
--- =========================
--- AI INTELLIGENCE
--- =========================
-
-CREATE OR REPLACE TABLE INSURE360_DB.AI.INTERACTION_INSIGHTS (
-    INTERACTION_ID VARCHAR NOT NULL,
-    CUSTOMER_ID VARCHAR NOT NULL,
-    SENTIMENT_SCORE NUMBER(10,4),
-    SENTIMENT VARCHAR,
-    AI_CLASSIFICATION VARCHAR,
-    CANCELLATION_SIGNAL BOOLEAN,
-    URGENCY VARCHAR,
-    CONSTRAINT PK_INTERACTION_INSIGHTS PRIMARY KEY (INTERACTION_ID)
-);
 
 -- =========================
--- STRUCTURED CUSTOMER 360
+-- ANALYTICS VIEWS
 -- =========================
 
-CREATE OR REPLACE VIEW INSURE360_DB.ANALYTICS.VW_CUSTOMER_360 AS
-SELECT
-    c.CUSTOMER_ID,
-    c.CUSTOMER_NAME,
-    c.CUSTOMER_SEGMENT,
-    COALESCE(p.TOTAL_PREMIUM, 0) AS TOTAL_PREMIUM,
-    COALESCE(p.ACTIVE_POLICIES, 0) AS ACTIVE_POLICIES,
-    COALESCE(cl.OPEN_CLAIMS, 0) AS OPEN_CLAIMS,
-    COALESCE(co.OPEN_COMPLAINTS, 0) AS OPEN_COMPLAINTS,
-    COALESCE(py.OVERDUE_PAYMENTS, 0) AS OVERDUE_PAYMENTS,
-    p.DAYS_TO_RENEWAL
-FROM INSURE360_DB.RAW.CUSTOMERS c
-LEFT JOIN (
+create or replace view INSURE360_DB.ANALYTICS.VW_INTERACTION_RECOVERY(
+	INTERACTION_ID,
+	CUSTOMER_ID,
+	INTERACTION_DATE,
+	CHANNEL,
+	INTERACTION_TYPE,
+	AGENT_ID,
+	CALL_DURATION_SEC,
+	SENTIMENT_SCORE,
+	SENTIMENT_LABEL,
+	INTENT,
+	URGENCY,
+	CANCELLATION_INTENT,
+	INTERACTION_SUMMARY,
+	ISSUE_RELATIONSHIP,
+	RESOLUTION_STATUS,
+	RESOLVES_INTERACTION_ID,
+	RESOLUTION_SUMMARY,
+	PREVIOUS_INTERACTION_ID,
+	PREVIOUS_INTERACTION_DATE,
+	PREVIOUS_SENTIMENT_LABEL,
+	PREVIOUS_SENTIMENT_SCORE,
+	SENTIMENT_TREND,
+	ISSUE_RESOLVED,
+	RESOLUTION_REASON,
+	PROCESSED_AT
+) as
+
+WITH RAW_INTERACTIONS AS (
+
     SELECT
+        INTERACTION_ID,
         CUSTOMER_ID,
-        SUM(IFF(POLICY_STATUS = 'ACTIVE', PREMIUM_AMOUNT, 0)) AS TOTAL_PREMIUM,
-        COUNT_IF(POLICY_STATUS = 'ACTIVE') AS ACTIVE_POLICIES,
-        MIN(IFF(POLICY_STATUS = 'ACTIVE', DATEDIFF('day', CURRENT_DATE(), END_DATE), NULL)) AS DAYS_TO_RENEWAL
-    FROM INSURE360_DB.RAW.POLICIES
-    GROUP BY CUSTOMER_ID
-) p ON c.CUSTOMER_ID = p.CUSTOMER_ID
-LEFT JOIN (
-    SELECT CUSTOMER_ID, COUNT_IF(CLAIM_STATUS = 'OPEN') AS OPEN_CLAIMS
-    FROM INSURE360_DB.RAW.CLAIMS
-    GROUP BY CUSTOMER_ID
-) cl ON c.CUSTOMER_ID = cl.CUSTOMER_ID
-LEFT JOIN (
-    SELECT CUSTOMER_ID, COUNT_IF(COMPLAINT_STATUS IN ('OPEN','IN_PROGRESS')) AS OPEN_COMPLAINTS
-    FROM INSURE360_DB.RAW.COMPLAINTS
-    GROUP BY CUSTOMER_ID
-) co ON c.CUSTOMER_ID = co.CUSTOMER_ID
-LEFT JOIN (
-    SELECT CUSTOMER_ID, COUNT_IF(PAYMENT_STATUS = 'OVERDUE') AS OVERDUE_PAYMENTS
-    FROM INSURE360_DB.RAW.PAYMENTS
-    GROUP BY CUSTOMER_ID
-) py ON c.CUSTOMER_ID = py.CUSTOMER_ID;
+        INTERACTION_DATE,
+        CHANNEL,
+        INTERACTION_TYPE,
+        AGENT_ID,
+        CALL_DURATION_SEC,
+        TRANSCRIPT
+    FROM INSURE360_DB.RAW.CUSTOMER_INTERACTIONS
 
--- =========================
--- CUSTOMER INTELLIGENCE
--- =========================
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY INTERACTION_ID
+        ORDER BY INTERACTION_DATE DESC
+    ) = 1
+),
 
-CREATE OR REPLACE VIEW INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE AS
-SELECT
-    c360.*,
-    COALESCE(i.NEGATIVE_INTERACTIONS, 0) AS NEGATIVE_INTERACTIONS,
-    COALESCE(i.CANCELLATION_SIGNALS, 0) AS CANCELLATION_SIGNALS,
-    COALESCE(i.HIGH_URGENCY_INTERACTIONS, 0) AS HIGH_URGENCY_INTERACTIONS
-FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_360 c360
-LEFT JOIN (
+AI_INTERACTIONS AS (
+
     SELECT
+        INTERACTION_ID,
         CUSTOMER_ID,
-        COUNT_IF(UPPER(SENTIMENT) = 'NEGATIVE') AS NEGATIVE_INTERACTIONS,
-        COUNT_IF(CANCELLATION_SIGNAL = TRUE) AS CANCELLATION_SIGNALS,
-        COUNT_IF(UPPER(URGENCY) = 'HIGH') AS HIGH_URGENCY_INTERACTIONS
+        SENTIMENT_SCORE,
+        SENTIMENT_LABEL,
+        INTENT,
+        URGENCY,
+        CANCELLATION_INTENT,
+        INTERACTION_SUMMARY,
+
+        ISSUE_RELATIONSHIP,
+        RESOLUTION_STATUS,
+        RESOLVES_INTERACTION_ID,
+        RESOLUTION_SUMMARY,
+
+        PROCESSED_AT
+
     FROM INSURE360_DB.AI.INTERACTION_INSIGHTS
-    GROUP BY CUSTOMER_ID
-) i ON c360.CUSTOMER_ID = i.CUSTOMER_ID;
 
--- =========================
--- EXPLAINABLE RISK + NEXT BEST ACTION
--- =========================
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY INTERACTION_ID
+        ORDER BY PROCESSED_AT DESC
+    ) = 1
+),
 
-CREATE OR REPLACE VIEW INSURE360_DB.ANALYTICS.VW_NEXT_BEST_ACTION AS
-WITH scored AS (
+COMBINED AS (
+
     SELECT
-        *,
+        R.INTERACTION_ID,
+        R.CUSTOMER_ID,
+        R.INTERACTION_DATE,
+        R.CHANNEL,
+        R.INTERACTION_TYPE,
+        R.AGENT_ID,
+        R.CALL_DURATION_SEC,
+        R.TRANSCRIPT,
+
+        A.SENTIMENT_SCORE,
+        A.SENTIMENT_LABEL,
+        A.INTENT,
+        A.URGENCY,
+        A.CANCELLATION_INTENT,
+        A.INTERACTION_SUMMARY,
+
+        A.ISSUE_RELATIONSHIP,
+        A.RESOLUTION_STATUS,
+        A.RESOLVES_INTERACTION_ID,
+        A.RESOLUTION_SUMMARY,
+
+        A.PROCESSED_AT
+
+    FROM RAW_INTERACTIONS R
+
+    LEFT JOIN AI_INTERACTIONS A
+        ON R.INTERACTION_ID = A.INTERACTION_ID
+),
+
+WITH_PREVIOUS AS (
+
+    SELECT
+        C.*,
+
+        LAG(C.INTERACTION_ID) OVER (
+            PARTITION BY C.CUSTOMER_ID
+            ORDER BY C.INTERACTION_DATE, C.INTERACTION_ID
+        ) AS PREVIOUS_INTERACTION_ID,
+
+        LAG(C.INTERACTION_DATE) OVER (
+            PARTITION BY C.CUSTOMER_ID
+            ORDER BY C.INTERACTION_DATE, C.INTERACTION_ID
+        ) AS PREVIOUS_INTERACTION_DATE,
+
+        LAG(C.SENTIMENT_LABEL) OVER (
+            PARTITION BY C.CUSTOMER_ID
+            ORDER BY C.INTERACTION_DATE, C.INTERACTION_ID
+        ) AS PREVIOUS_SENTIMENT_LABEL,
+
+        LAG(C.SENTIMENT_SCORE) OVER (
+            PARTITION BY C.CUSTOMER_ID
+            ORDER BY C.INTERACTION_DATE, C.INTERACTION_ID
+        ) AS PREVIOUS_SENTIMENT_SCORE
+
+    FROM COMBINED C
+)
+
+SELECT
+
+    INTERACTION_ID,
+    CUSTOMER_ID,
+    INTERACTION_DATE,
+    CHANNEL,
+    INTERACTION_TYPE,
+    AGENT_ID,
+    CALL_DURATION_SEC,
+
+    SENTIMENT_SCORE,
+    SENTIMENT_LABEL,
+    INTENT,
+    URGENCY,
+    CANCELLATION_INTENT,
+    INTERACTION_SUMMARY,
+
+    /* Interaction lifecycle */
+
+    COALESCE(
+        ISSUE_RELATIONSHIP,
+        CASE
+            WHEN PREVIOUS_INTERACTION_ID IS NULL
+                THEN 'INITIAL_ISSUE'
+            ELSE 'UNKNOWN'
+        END
+    ) AS ISSUE_RELATIONSHIP,
+
+    COALESCE(
+        RESOLUTION_STATUS,
+        CASE
+            WHEN PREVIOUS_INTERACTION_ID IS NULL
+                THEN 'OPEN'
+            ELSE 'UNKNOWN'
+        END
+    ) AS RESOLUTION_STATUS,
+
+    RESOLVES_INTERACTION_ID,
+
+    RESOLUTION_SUMMARY,
+
+    /* Previous interaction context */
+
+    PREVIOUS_INTERACTION_ID,
+    PREVIOUS_INTERACTION_DATE,
+    PREVIOUS_SENTIMENT_LABEL,
+    PREVIOUS_SENTIMENT_SCORE,
+
+    /* Sentiment movement */
+
+    CASE
+
+        WHEN PREVIOUS_SENTIMENT_SCORE IS NULL
+            THEN NULL
+
+        WHEN SENTIMENT_SCORE > PREVIOUS_SENTIMENT_SCORE
+            THEN 'IMPROVED'
+
+        WHEN SENTIMENT_SCORE < PREVIOUS_SENTIMENT_SCORE
+            THEN 'DECLINED'
+
+        ELSE 'UNCHANGED'
+
+    END AS SENTIMENT_TREND,
+
+    /* Easy business flag */
+
+    CASE
+
+        WHEN RESOLUTION_STATUS = 'RESOLVED'
+            THEN TRUE
+
+        ELSE FALSE
+
+    END AS ISSUE_RESOLVED,
+
+    /* Human-readable explanation */
+
+    CASE
+
+        WHEN RESOLUTION_STATUS = 'RESOLVED'
+            THEN COALESCE(
+                RESOLUTION_SUMMARY,
+                'The previous customer issue was resolved.'
+            )
+
+        WHEN RESOLUTION_STATUS = 'UNRESOLVED'
+            THEN COALESCE(
+                RESOLUTION_SUMMARY,
+                'The customer followed up and the issue remains unresolved.'
+            )
+
+        WHEN RESOLUTION_STATUS = 'OPEN'
+            THEN 'Initial customer issue with no previous interaction.'
+
+        ELSE
+            'Insufficient information to determine issue resolution.'
+
+    END AS RESOLUTION_REASON,
+
+    PROCESSED_AT
+
+FROM WITH_PREVIOUS;
+
+
+create or replace view INSURE360_DB.ANALYTICS.VW_NEXT_BEST_ACTION(
+	CUSTOMER_ID,
+	CUSTOMER_NAME,
+	CUSTOMER_SEGMENT,
+	RISK_SCORE,
+	RISK_LEVEL,
+	RISK_REASON,
+	CUSTOMER_HEALTH_STATUS,
+	INTERACTION_RISK_VELOCITY,
+	OPEN_CLAIMS,
+	OPEN_COMPLAINTS,
+	OVERDUE_PAYMENTS,
+	DAYS_TO_RENEWAL,
+	ACTIVE_POLICIES,
+	NEGATIVE_INTERACTIONS,
+	CANCELLATION_SIGNALS,
+	HIGH_URGENCY_INTERACTIONS,
+	RECENT_NEGATIVE_INTERACTIONS,
+	RECENT_HIGH_URGENCY_INTERACTIONS,
+	RECENT_CANCELLATION_SIGNALS,
+	TOTAL_PREMIUM,
+	ESTIMATED_PREMIUM_AT_RISK,
+	INTERVENTION_SCORE,
+	INTERVENTION_TIER,
+	NEXT_BEST_ACTION,
+	ACTION_TYPE,
+	ACTION_PRIORITY,
+	RECOMMENDED_CHANNEL,
+	ACTION_SLA,
+	ACTION_REASON
+) as
+
+/* =========================================================
+   STEP 2
+   DECISION BASE
+
+   Combines customer intelligence + customer risk.
+   ========================================================= */
+
+WITH DECISION_BASE AS
+(
+    SELECT
+
+        C.CUSTOMER_ID,
+        C.CUSTOMER_NAME,
+        C.CUSTOMER_SEGMENT,
+
+        R.RISK_SCORE,
+        R.RISK_LEVEL,
+        R.RISK_REASON,
+
+        C.CUSTOMER_HEALTH_STATUS,
+        C.INTERACTION_RISK_VELOCITY,
+
+        C.OPEN_CLAIMS,
+        C.OPEN_COMPLAINTS,
+        C.OVERDUE_PAYMENTS,
+        C.DAYS_TO_RENEWAL,
+        C.ACTIVE_POLICIES,
+
+        C.NEGATIVE_INTERACTIONS,
+        C.CANCELLATION_SIGNALS,
+        C.HIGH_URGENCY_INTERACTIONS,
+
+        C.RECENT_NEGATIVE_INTERACTIONS,
+        C.RECENT_HIGH_URGENCY_INTERACTIONS,
+        C.RECENT_CANCELLATION_SIGNALS,
+
+        C.TOTAL_PREMIUM,
+
+        /*
+        Estimated premium exposure.
+        This is a business-rule estimate,
+        not a financial forecast.
+        */
+
+        CASE
+            WHEN R.RISK_LEVEL = 'HIGH'
+                THEN C.TOTAL_PREMIUM
+
+            WHEN R.RISK_LEVEL = 'MEDIUM'
+                THEN C.TOTAL_PREMIUM * 0.50
+
+            ELSE
+                C.TOTAL_PREMIUM * 0.10
+        END AS ESTIMATED_PREMIUM_AT_RISK
+
+    FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE C
+
+    INNER JOIN INSURE360_DB.ANALYTICS.VW_CUSTOMER_RISK R
+        ON C.CUSTOMER_ID = R.CUSTOMER_ID
+),
+
+/* =========================================================
+   STEP 3
+   INTERVENTION SCORE
+   ========================================================= */
+
+INTERVENTION_SCORE_BASE AS
+(
+    SELECT
+
+        D.*,
+
         LEAST(
             100,
-            (OPEN_CLAIMS * 15)
-            + (OPEN_COMPLAINTS * 15)
-            + (OVERDUE_PAYMENTS * 10)
-            + (NEGATIVE_INTERACTIONS * 10)
-            + (CANCELLATION_SIGNALS * 25)
-            + (HIGH_URGENCY_INTERACTIONS * 10)
-            + IFF(DAYS_TO_RENEWAL BETWEEN 0 AND 30, 10, 0)
-        ) AS RISK_SCORE
-    FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE
+
+            D.RISK_SCORE
+
+            /* Customer health deterioration */
+            + CASE
+                WHEN D.CUSTOMER_HEALTH_STATUS =
+                     'RAPIDLY_DETERIORATING'
+                    THEN 15
+
+                WHEN D.CUSTOMER_HEALTH_STATUS =
+                     'DETERIORATING'
+                    THEN 10
+
+                WHEN D.CUSTOMER_HEALTH_STATUS =
+                     'WATCH'
+                    THEN 5
+
+                ELSE 0
+              END
+
+            /* Recent negative interactions */
+            + CASE
+                WHEN D.RECENT_NEGATIVE_INTERACTIONS >= 3
+                    THEN 10
+
+                WHEN D.RECENT_NEGATIVE_INTERACTIONS > 0
+                    THEN 5
+
+                ELSE 0
+              END
+
+            /* Recent high urgency */
+            + CASE
+                WHEN D.RECENT_HIGH_URGENCY_INTERACTIONS >= 2
+                    THEN 10
+
+                WHEN D.RECENT_HIGH_URGENCY_INTERACTIONS > 0
+                    THEN 5
+
+                ELSE 0
+              END
+
+            /* Recent cancellation */
+            + CASE
+                WHEN D.RECENT_CANCELLATION_SIGNALS >= 2
+                    THEN 15
+
+                WHEN D.RECENT_CANCELLATION_SIGNALS > 0
+                    THEN 10
+
+                ELSE 0
+              END
+
+            /* Renewal pressure */
+            + CASE
+                WHEN D.DAYS_TO_RENEWAL BETWEEN 0 AND 7
+                    THEN 10
+
+                WHEN D.DAYS_TO_RENEWAL BETWEEN 8 AND 30
+                    THEN 5
+
+                ELSE 0
+              END
+
+        ) AS INTERVENTION_SCORE
+
+    FROM DECISION_BASE D
 ),
-classified AS (
+
+/* =========================================================
+   STEP 4
+   INTERVENTION TIER
+   ========================================================= */
+
+INTERVENTION_TIER_BASE AS
+(
     SELECT
-        *,
+
+        I.*,
+
         CASE
-            WHEN RISK_SCORE >= 60 THEN 'HIGH'
-            WHEN RISK_SCORE >= 30 THEN 'MEDIUM'
+
+            WHEN I.INTERVENTION_SCORE >= 80
+                THEN 'IMMEDIATE'
+
+            WHEN I.INTERVENTION_SCORE >= 60
+                THEN 'HIGH'
+
+            WHEN I.INTERVENTION_SCORE >= 30
+                THEN 'MEDIUM'
+
             ELSE 'LOW'
-        END AS RISK_LEVEL,
-        RTRIM(
-            CONCAT(
-                IFF(OPEN_CLAIMS > 0, 'Open claims; ', ''),
-                IFF(OPEN_COMPLAINTS > 0, 'Open complaints; ', ''),
-                IFF(OVERDUE_PAYMENTS > 0, 'Overdue payments; ', ''),
-                IFF(NEGATIVE_INTERACTIONS > 0, 'Negative interactions; ', ''),
-                IFF(CANCELLATION_SIGNALS > 0, 'Cancellation intent; ', ''),
-                IFF(HIGH_URGENCY_INTERACTIONS > 0, 'High-urgency interactions; ', '')
-            ),
-            '; '
-        ) AS RISK_REASON
-    FROM scored
+
+        END AS INTERVENTION_TIER
+
+    FROM INTERVENTION_SCORE_BASE I
+),
+
+/* =========================================================
+   STEP 5
+   ENHANCED NEXT BEST ACTION
+   ========================================================= */
+
+ACTION_BASE AS
+(
+    SELECT
+
+        I.*,
+
+        CASE
+
+            /* =================================================
+               CRITICAL CLAIM + CANCELLATION
+               ================================================= */
+
+            WHEN
+                I.CANCELLATION_SIGNALS > 0
+                AND I.OPEN_CLAIMS > 0
+                AND I.CUSTOMER_HEALTH_STATUS =
+                    'RAPIDLY_DETERIORATING'
+            THEN 'CLAIM_ESCALATION'
+
+            /* Cancellation + unresolved claim */
+            WHEN
+                I.CANCELLATION_SIGNALS > 0
+                AND I.OPEN_CLAIMS > 0
+            THEN 'CLAIM_ESCALATION'
+
+            /* Cancellation + deterioration */
+            WHEN
+                I.CANCELLATION_SIGNALS > 0
+                AND I.CUSTOMER_HEALTH_STATUS IN
+                    ('RAPIDLY_DETERIORATING', 'DETERIORATING')
+            THEN 'RETENTION_CALL'
+
+            /* Cancellation intent */
+            WHEN
+                I.CANCELLATION_SIGNALS > 0
+            THEN 'RETENTION_CALL'
+
+            /* Rapid deterioration + complaint */
+            WHEN
+                I.CUSTOMER_HEALTH_STATUS =
+                    'RAPIDLY_DETERIORATING'
+                AND I.OPEN_COMPLAINTS > 0
+            THEN 'SERVICE_RECOVERY'
+
+            /* Complaint + negative experience */
+            WHEN
+                I.OPEN_COMPLAINTS > 0
+                AND I.NEGATIVE_INTERACTIONS > 0
+            THEN 'SERVICE_RECOVERY'
+
+            /* Urgent claim */
+            WHEN
+                I.OPEN_CLAIMS > 0
+                AND I.HIGH_URGENCY_INTERACTIONS > 0
+            THEN 'CLAIM_ESCALATION'
+
+            /* Overdue payment */
+            WHEN
+                I.OVERDUE_PAYMENTS > 0
+            THEN 'PAYMENT_REMINDER'
+
+            /* Upcoming renewal */
+            WHEN
+                I.DAYS_TO_RENEWAL BETWEEN 0 AND 30
+                AND I.RISK_LEVEL = 'LOW'
+            THEN 'RENEWAL_OUTREACH'
+
+            /* Cross-sell */
+            WHEN
+                I.ACTIVE_POLICIES = 1
+                AND I.NEGATIVE_INTERACTIONS = 0
+                AND I.OPEN_COMPLAINTS = 0
+                AND I.RISK_LEVEL = 'LOW'
+            THEN 'CROSS_SELL'
+
+            ELSE 'NO_IMMEDIATE_ACTION'
+
+        END AS NEXT_BEST_ACTION
+
+    FROM INTERVENTION_TIER_BASE I
+),
+
+/* =========================================================
+   STEP 6
+   ACTION TYPE
+   ========================================================= */
+
+ACTION_TYPE_BASE AS
+(
+    SELECT
+
+        A.*,
+
+        CASE
+
+            WHEN A.NEXT_BEST_ACTION =
+                'CLAIM_ESCALATION'
+            THEN 'CLAIM'
+
+            WHEN A.NEXT_BEST_ACTION =
+                'RETENTION_CALL'
+            THEN 'RETENTION'
+
+            WHEN A.NEXT_BEST_ACTION =
+                'SERVICE_RECOVERY'
+            THEN 'SERVICE_RECOVERY'
+
+            WHEN A.NEXT_BEST_ACTION =
+                'PAYMENT_REMINDER'
+            THEN 'PAYMENT'
+
+            WHEN A.NEXT_BEST_ACTION =
+                'RENEWAL_OUTREACH'
+            THEN 'RENEWAL'
+
+            WHEN A.NEXT_BEST_ACTION =
+                'CROSS_SELL'
+            THEN 'GROWTH'
+
+            ELSE 'NO_ACTION'
+
+        END AS ACTION_TYPE
+
+    FROM ACTION_BASE A
+),
+
+/* =========================================================
+   STEP 7
+   RECOMMENDED CHANNEL
+   ========================================================= */
+
+CHANNEL_BASE AS
+(
+    SELECT
+
+        A.*,
+
+        CASE
+
+            /* Immediate / high-risk cases */
+            WHEN
+                A.INTERVENTION_TIER IN
+                    ('IMMEDIATE', 'HIGH')
+                AND A.ACTION_TYPE IN
+                    ('CLAIM', 'RETENTION', 'SERVICE_RECOVERY')
+            THEN 'PHONE'
+
+            /* Payment-related */
+            WHEN
+                A.ACTION_TYPE = 'PAYMENT'
+            THEN 'EMAIL'
+
+            /* Renewal */
+            WHEN
+                A.ACTION_TYPE = 'RENEWAL'
+            THEN 'EMAIL'
+
+            /* Cross-sell */
+            WHEN
+                A.ACTION_TYPE = 'GROWTH'
+            THEN 'EMAIL'
+
+            /* Medium intervention */
+            WHEN
+                A.INTERVENTION_TIER = 'MEDIUM'
+            THEN 'PHONE_OR_EMAIL'
+
+            ELSE 'NO_CONTACT_REQUIRED'
+
+        END AS RECOMMENDED_CHANNEL
+
+    FROM ACTION_TYPE_BASE A
+),
+
+/* =========================================================
+   STEP 8
+   ACTION SLA
+   ========================================================= */
+
+SLA_BASE AS
+(
+    SELECT
+
+        A.*,
+
+        CASE
+
+            /* Immediate intervention */
+            WHEN
+                A.INTERVENTION_TIER = 'IMMEDIATE'
+            THEN 'WITHIN_4_HOURS'
+
+            /* High intervention */
+            WHEN
+                A.INTERVENTION_TIER = 'HIGH'
+            THEN 'WITHIN_24_HOURS'
+
+            /* Medium intervention */
+            WHEN
+                A.INTERVENTION_TIER = 'MEDIUM'
+            THEN 'WITHIN_3_DAYS'
+
+            /* Low intervention */
+            WHEN
+                A.INTERVENTION_TIER = 'LOW'
+                AND A.ACTION_TYPE <> 'NO_ACTION'
+            THEN 'WITHIN_7_DAYS'
+
+            ELSE 'NO_ACTION'
+
+        END AS ACTION_SLA
+
+    FROM CHANNEL_BASE A
 )
+
+/* =========================================================
+   FINAL OUTPUT
+   ========================================================= */
+
 SELECT
-    CUSTOMER_ID,
-    RISK_SCORE,
-    RISK_LEVEL,
-    NULLIF(RISK_REASON, '') AS RISK_REASON,
-    CASE
-        WHEN CANCELLATION_SIGNALS > 0 AND OPEN_CLAIMS > 0 THEN 'CLAIM_ESCALATION'
-        WHEN CANCELLATION_SIGNALS > 0 OR RISK_LEVEL = 'HIGH' THEN 'RETENTION_CALL'
-        WHEN NEGATIVE_INTERACTIONS > 0 OR OPEN_COMPLAINTS > 0 THEN 'SERVICE_RECOVERY'
-        WHEN OVERDUE_PAYMENTS > 0 THEN 'PAYMENT_REMINDER'
-        WHEN DAYS_TO_RENEWAL BETWEEN 0 AND 30 THEN 'RENEWAL_OUTREACH'
-        WHEN RISK_LEVEL = 'LOW' AND ACTIVE_POLICIES = 1 THEN 'CROSS_SELL'
-        ELSE 'NO_IMMEDIATE_ACTION'
-    END AS NEXT_BEST_ACTION,
-    CASE
-        WHEN CANCELLATION_SIGNALS > 0 AND OPEN_CLAIMS > 0 THEN 'Cancellation intent combined with unresolved claim.'
-        WHEN CANCELLATION_SIGNALS > 0 OR RISK_LEVEL = 'HIGH' THEN 'Customer shows elevated retention/churn risk.'
-        WHEN NEGATIVE_INTERACTIONS > 0 OR OPEN_COMPLAINTS > 0 THEN 'Negative service signals require recovery.'
-        WHEN OVERDUE_PAYMENTS > 0 THEN 'Premium payment is overdue.'
-        WHEN DAYS_TO_RENEWAL BETWEEN 0 AND 30 THEN 'Policy renewal is approaching.'
-        WHEN RISK_LEVEL = 'LOW' AND ACTIVE_POLICIES = 1 THEN 'Healthy customer with opportunity for an additional product.'
-        ELSE 'No immediate intervention required.'
-    END AS ACTION_REASON
-FROM classified;
 
--- =========================
--- CUSTOMER DECISION
--- =========================
-
-CREATE OR REPLACE VIEW INSURE360_DB.ANALYTICS.VW_CUSTOMER_DECISIONS AS
-SELECT
-    i.CUSTOMER_ID,
-    i.CUSTOMER_NAME,
-    i.CUSTOMER_SEGMENT,
-    i.TOTAL_PREMIUM,
-    i.ACTIVE_POLICIES,
-    i.OPEN_CLAIMS,
-    i.OPEN_COMPLAINTS,
-    i.OVERDUE_PAYMENTS,
-    i.DAYS_TO_RENEWAL,
-    i.NEGATIVE_INTERACTIONS,
-    i.CANCELLATION_SIGNALS,
-    i.HIGH_URGENCY_INTERACTIONS,
-    n.RISK_SCORE,
-    n.RISK_LEVEL,
-    n.RISK_REASON,
-    n.NEXT_BEST_ACTION,
-    n.ACTION_REASON
-FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE i
-JOIN INSURE360_DB.ANALYTICS.VW_NEXT_BEST_ACTION n
-  ON i.CUSTOMER_ID = n.CUSTOMER_ID;
-
--- =========================
--- CORTEX ANALYST SOURCE
--- =========================
-
-CREATE OR REPLACE VIEW INSURE360_DB.ANALYTICS.VW_CUSTOMER_SEMANTIC_SOURCE AS
-SELECT
     CUSTOMER_ID,
     CUSTOMER_NAME,
     CUSTOMER_SEGMENT,
+
     RISK_SCORE,
     RISK_LEVEL,
     RISK_REASON,
-    TOTAL_PREMIUM,
+
+    CUSTOMER_HEALTH_STATUS,
+    INTERACTION_RISK_VELOCITY,
+
     OPEN_CLAIMS,
     OPEN_COMPLAINTS,
     OVERDUE_PAYMENTS,
     DAYS_TO_RENEWAL,
     ACTIVE_POLICIES,
+
     NEGATIVE_INTERACTIONS,
     CANCELLATION_SIGNALS,
     HIGH_URGENCY_INTERACTIONS,
-    NEXT_BEST_ACTION,
-    ACTION_REASON
-FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_DECISIONS;
 
--- NOTE:
--- Create the Snowflake Semantic View and Cortex Agent using the
--- implementation instructions in 10_SEMANTIC_VIEWS.md and
--- 13_AGENT_ARCHITECTURE.md. Exact syntax can vary by enabled
--- Snowflake account features/version.
+    RECENT_NEGATIVE_INTERACTIONS,
+    RECENT_HIGH_URGENCY_INTERACTIONS,
+    RECENT_CANCELLATION_SIGNALS,
+
+    TOTAL_PREMIUM,
+    ESTIMATED_PREMIUM_AT_RISK,
+
+    /* STEP 3 */
+    INTERVENTION_SCORE,
+
+    /* STEP 4 */
+    INTERVENTION_TIER,
+
+    /* STEP 5 */
+    NEXT_BEST_ACTION,
+
+    /* STEP 6 */
+    ACTION_TYPE,
+
+    /* EXISTING PRIORITY */
+    CASE
+
+        WHEN
+            INTERVENTION_TIER = 'IMMEDIATE'
+        THEN 'CRITICAL'
+
+        WHEN
+            INTERVENTION_TIER = 'HIGH'
+        THEN 'HIGH'
+
+        WHEN
+            INTERVENTION_TIER = 'MEDIUM'
+        THEN 'MEDIUM'
+
+        ELSE 'LOW'
+
+    END AS ACTION_PRIORITY,
+
+    /* STEP 7 */
+    RECOMMENDED_CHANNEL,
+
+    /* STEP 8 */
+    ACTION_SLA,
+
+    /* STEP 9 */
+    CASE
+
+        /* Critical */
+        WHEN
+            CANCELLATION_SIGNALS > 0
+            AND OPEN_CLAIMS > 0
+            AND CUSTOMER_HEALTH_STATUS =
+                'RAPIDLY_DETERIORATING'
+        THEN
+            'Immediate customer intervention required because cancellation intent, unresolved claim, and rapid deterioration are present'
+
+        /* Cancellation + claim */
+        WHEN
+            CANCELLATION_SIGNALS > 0
+            AND OPEN_CLAIMS > 0
+        THEN
+            'Customer shows cancellation intent together with an unresolved claim'
+
+        /* Cancellation + deterioration */
+        WHEN
+            CANCELLATION_SIGNALS > 0
+            AND CUSTOMER_HEALTH_STATUS IN
+                ('RAPIDLY_DETERIORATING', 'DETERIORATING')
+        THEN
+            'Customer shows cancellation intent and deteriorating experience signals'
+
+        /* Cancellation */
+        WHEN
+            CANCELLATION_SIGNALS > 0
+        THEN
+            'Cancellation intent detected and retention intervention is required'
+
+        /* Service recovery */
+        WHEN
+            OPEN_COMPLAINTS > 0
+            AND NEGATIVE_INTERACTIONS > 0
+        THEN
+            'Open complaint combined with negative customer interactions requires service recovery'
+
+        /* Urgent claim */
+        WHEN
+            OPEN_CLAIMS > 0
+            AND HIGH_URGENCY_INTERACTIONS > 0
+        THEN
+            'Open claim combined with high urgency interactions requires claim escalation'
+
+        /* Payment */
+        WHEN
+            OVERDUE_PAYMENTS > 0
+        THEN
+            'Overdue payment requires customer follow-up'
+
+        /* Renewal */
+        WHEN
+            DAYS_TO_RENEWAL BETWEEN 0 AND 30
+            AND RISK_LEVEL = 'LOW'
+        THEN
+            'Low-risk customer is approaching policy renewal'
+
+        /* Cross sell */
+        WHEN
+            ACTIVE_POLICIES = 1
+            AND NEGATIVE_INTERACTIONS = 0
+            AND OPEN_COMPLAINTS = 0
+            AND RISK_LEVEL = 'LOW'
+        THEN
+            'Healthy low-risk customer has potential for additional product engagement'
+
+        ELSE
+            'No immediate risk or service intervention required'
+
+    END AS ACTION_REASON
+
+FROM SLA_BASE;
+
+create or replace view INSURE360_DB.ANALYTICS.VW_CUSTOMER_RISK(
+	CUSTOMER_ID,
+	CUSTOMER_NAME,
+	DATE_OF_BIRTH,
+	GENDER,
+	CITY,
+	REGION,
+	JOIN_DATE,
+	CUSTOMER_SEGMENT,
+	TOTAL_POLICIES,
+	ACTIVE_POLICIES,
+	TOTAL_PREMIUM,
+	ACTIVE_PREMIUM,
+	NEXT_POLICY_END_DATE,
+	TOTAL_CLAIMS,
+	OPEN_CLAIMS,
+	TOTAL_CLAIM_AMOUNT,
+	TOTAL_SETTLEMENT_AMOUNT,
+	OPEN_CLAIM_AMOUNT,
+	TOTAL_COMPLAINTS,
+	OPEN_COMPLAINTS,
+	HIGH_PRIORITY_COMPLAINTS,
+	TOTAL_PAYMENTS,
+	OVERDUE_PAYMENTS,
+	TOTAL_PAYMENT_AMOUNT,
+	OVERDUE_PAYMENT_AMOUNT,
+	DAYS_TO_RENEWAL,
+	AI_INTERACTION_COUNT,
+	AVG_SENTIMENT_SCORE,
+	NEGATIVE_INTERACTIONS,
+	CANCELLATION_SIGNALS,
+	HIGH_URGENCY_INTERACTIONS,
+	CLAIM_ESCALATION_SIGNALS,
+	PAYMENT_ISSUE_SIGNALS,
+	HAS_CANCELLATION_INTENT,
+	LATEST_SENTIMENT_SCORE,
+	LATEST_SENTIMENT_LABEL,
+	LATEST_INTENT,
+	LATEST_URGENCY,
+	RECENT_NEGATIVE_INTERACTIONS,
+	RECENT_HIGH_URGENCY_INTERACTIONS,
+	RECENT_CANCELLATION_SIGNALS,
+	INTERACTION_RISK_VELOCITY,
+	CUSTOMER_HEALTH_STATUS,
+	RISK_SCORE,
+	RISK_LEVEL,
+	RISK_REASON
+) as
+
+WITH RISK_CALC AS (
+
+    SELECT
+        I.*,
+
+        LEAST(
+            100,
+
+            /* Open claim */
+            IFF(I.OPEN_CLAIMS > 0, 20, 0)
+
+            /* Open complaint */
+            + IFF(I.OPEN_COMPLAINTS > 0, 15, 0)
+
+            /* Overdue payment */
+            + IFF(I.OVERDUE_PAYMENTS > 0, 10, 0)
+
+            /* Negative interaction */
+            + IFF(I.NEGATIVE_INTERACTIONS > 0, 15, 0)
+
+            /* Cancellation intent */
+            + IFF(I.CANCELLATION_SIGNALS > 0, 30, 0)
+
+            /* High urgency */
+            + IFF(I.HIGH_URGENCY_INTERACTIONS > 0, 10, 0)
+
+            /* Customer deterioration */
+            + CASE
+                WHEN I.CUSTOMER_HEALTH_STATUS = 'RAPIDLY_DETERIORATING'
+                    THEN 15
+
+                WHEN I.CUSTOMER_HEALTH_STATUS = 'DETERIORATING'
+                    THEN 10
+
+                WHEN I.CUSTOMER_HEALTH_STATUS = 'WATCH'
+                    THEN 5
+
+                ELSE 0
+              END
+
+        ) AS RISK_SCORE
+
+    FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE I
+)
+
+SELECT
+
+    R.*,
+
+    CASE
+        WHEN R.RISK_SCORE >= 60
+            THEN 'HIGH'
+
+        WHEN R.RISK_SCORE >= 30
+            THEN 'MEDIUM'
+
+        ELSE 'LOW'
+    END AS RISK_LEVEL,
+
+    ARRAY_TO_STRING(
+        ARRAY_CONSTRUCT_COMPACT(
+
+            IFF(
+                R.OPEN_CLAIMS > 0,
+                'Open claim',
+                NULL
+            ),
+
+            IFF(
+                R.OPEN_COMPLAINTS > 0,
+                'Open complaint',
+                NULL
+            ),
+
+            IFF(
+                R.OVERDUE_PAYMENTS > 0,
+                'Overdue payment',
+                NULL
+            ),
+
+            IFF(
+                R.NEGATIVE_INTERACTIONS > 0,
+                'Negative customer interactions',
+                NULL
+            ),
+
+            IFF(
+                R.CANCELLATION_SIGNALS > 0,
+                'Cancellation intent detected',
+                NULL
+            ),
+
+            IFF(
+                R.HIGH_URGENCY_INTERACTIONS > 0,
+                'High urgency interactions',
+                NULL
+            ),
+
+            CASE
+                WHEN R.CUSTOMER_HEALTH_STATUS =
+                     'RAPIDLY_DETERIORATING'
+                    THEN 'Rapidly deteriorating customer health'
+
+                WHEN R.CUSTOMER_HEALTH_STATUS =
+                     'DETERIORATING'
+                    THEN 'Customer sentiment deterioration'
+
+                WHEN R.CUSTOMER_HEALTH_STATUS =
+                     'WATCH'
+                    THEN 'Customer requires monitoring'
+
+                ELSE NULL
+            END
+
+        ),
+        ' | '
+    ) AS RISK_REASON
+
+FROM RISK_CALC R;
+
+
+create or replace view INSURE360_DB.ANALYTICS.VW_CUSTOMER_INTELLIGENCE(
+	CUSTOMER_ID,
+	CUSTOMER_NAME,
+	DATE_OF_BIRTH,
+	GENDER,
+	CITY,
+	REGION,
+	JOIN_DATE,
+	CUSTOMER_SEGMENT,
+	TOTAL_POLICIES,
+	ACTIVE_POLICIES,
+	TOTAL_PREMIUM,
+	ACTIVE_PREMIUM,
+	NEXT_POLICY_END_DATE,
+	TOTAL_CLAIMS,
+	OPEN_CLAIMS,
+	TOTAL_CLAIM_AMOUNT,
+	TOTAL_SETTLEMENT_AMOUNT,
+	OPEN_CLAIM_AMOUNT,
+	TOTAL_COMPLAINTS,
+	OPEN_COMPLAINTS,
+	HIGH_PRIORITY_COMPLAINTS,
+	TOTAL_PAYMENTS,
+	OVERDUE_PAYMENTS,
+	TOTAL_PAYMENT_AMOUNT,
+	OVERDUE_PAYMENT_AMOUNT,
+	DAYS_TO_RENEWAL,
+	AI_INTERACTION_COUNT,
+	AVG_SENTIMENT_SCORE,
+	NEGATIVE_INTERACTIONS,
+	CANCELLATION_SIGNALS,
+	HIGH_URGENCY_INTERACTIONS,
+	CLAIM_ESCALATION_SIGNALS,
+	PAYMENT_ISSUE_SIGNALS,
+	HAS_CANCELLATION_INTENT,
+	LATEST_SENTIMENT_SCORE,
+	LATEST_SENTIMENT_LABEL,
+	LATEST_INTENT,
+	LATEST_URGENCY,
+	RECENT_NEGATIVE_INTERACTIONS,
+	RECENT_HIGH_URGENCY_INTERACTIONS,
+	RECENT_CANCELLATION_SIGNALS,
+	INTERACTION_RISK_VELOCITY,
+	CUSTOMER_HEALTH_STATUS
+) as
+
+WITH INTERACTION_DATES AS (
+    SELECT
+        INTERACTION_ID,
+        CUSTOMER_ID,
+        INTERACTION_DATE
+    FROM INSURE360_DB.RAW.CUSTOMER_INTERACTIONS
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY INTERACTION_ID
+        ORDER BY INTERACTION_DATE DESC
+    ) = 1
+),
+
+AI_DEDUP AS (
+    SELECT
+        INTERACTION_ID,
+        CUSTOMER_ID,
+        SENTIMENT_SCORE,
+        SENTIMENT_LABEL,
+        INTENT,
+        URGENCY,
+        CANCELLATION_INTENT,
+        INTERACTION_SUMMARY,
+        PROCESSED_AT
+    FROM INSURE360_DB.AI.INTERACTION_INSIGHTS
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY INTERACTION_ID
+        ORDER BY PROCESSED_AT DESC
+    ) = 1
+),
+
+CUSTOMER_AI AS (
+    SELECT
+        A.CUSTOMER_ID,
+
+        COUNT(*) AS AI_INTERACTION_COUNT,
+
+        AVG(A.SENTIMENT_SCORE) AS AVG_SENTIMENT_SCORE,
+
+        COUNT_IF(
+            UPPER(A.SENTIMENT_LABEL) = 'NEGATIVE'
+        ) AS NEGATIVE_INTERACTIONS,
+
+        COUNT_IF(
+            COALESCE(A.CANCELLATION_INTENT, FALSE)
+        ) AS CANCELLATION_SIGNALS,
+
+        COUNT_IF(
+            UPPER(A.URGENCY) = 'HIGH'
+        ) AS HIGH_URGENCY_INTERACTIONS,
+
+        COUNT_IF(
+            UPPER(A.INTENT) = 'CLAIM_ESCALATION'
+        ) AS CLAIM_ESCALATION_SIGNALS,
+
+        COUNT_IF(
+            UPPER(A.INTENT) = 'PAYMENT_ISSUE'
+        ) AS PAYMENT_ISSUE_SIGNALS,
+
+        MAX(IFF(
+            COALESCE(A.CANCELLATION_INTENT, FALSE),
+            1,
+            0
+        )) > 0 AS HAS_CANCELLATION_INTENT,
+
+        MAX_BY(
+            A.SENTIMENT_SCORE,
+            D.INTERACTION_DATE
+        ) AS LATEST_SENTIMENT_SCORE,
+
+        MAX_BY(
+            A.SENTIMENT_LABEL,
+            D.INTERACTION_DATE
+        ) AS LATEST_SENTIMENT_LABEL,
+
+        MAX_BY(
+            A.INTENT,
+            D.INTERACTION_DATE
+        ) AS LATEST_INTENT,
+
+        MAX_BY(
+            A.URGENCY,
+            D.INTERACTION_DATE
+        ) AS LATEST_URGENCY,
+
+        COUNT_IF(
+            D.INTERACTION_DATE >= DATEADD(
+                'day',
+                -30,
+                CURRENT_DATE()
+            )
+            AND UPPER(A.SENTIMENT_LABEL) = 'NEGATIVE'
+        ) AS RECENT_NEGATIVE_INTERACTIONS,
+
+        COUNT_IF(
+            D.INTERACTION_DATE >= DATEADD(
+                'day',
+                -30,
+                CURRENT_DATE()
+            )
+            AND UPPER(A.URGENCY) = 'HIGH'
+        ) AS RECENT_HIGH_URGENCY_INTERACTIONS,
+
+        COUNT_IF(
+            D.INTERACTION_DATE >= DATEADD(
+                'day',
+                -30,
+                CURRENT_DATE()
+            )
+            AND COALESCE(A.CANCELLATION_INTENT, FALSE)
+        ) AS RECENT_CANCELLATION_SIGNALS
+
+    FROM AI_DEDUP A
+
+    LEFT JOIN INTERACTION_DATES D
+        ON A.INTERACTION_ID = D.INTERACTION_ID
+
+    GROUP BY A.CUSTOMER_ID
+)
+
+SELECT
+
+    C.*,
+
+    COALESCE(A.AI_INTERACTION_COUNT, 0)
+        AS AI_INTERACTION_COUNT,
+
+    COALESCE(A.AVG_SENTIMENT_SCORE, 0)
+        AS AVG_SENTIMENT_SCORE,
+
+    COALESCE(A.NEGATIVE_INTERACTIONS, 0)
+        AS NEGATIVE_INTERACTIONS,
+
+    COALESCE(A.CANCELLATION_SIGNALS, 0)
+        AS CANCELLATION_SIGNALS,
+
+    COALESCE(A.HIGH_URGENCY_INTERACTIONS, 0)
+        AS HIGH_URGENCY_INTERACTIONS,
+
+    COALESCE(A.CLAIM_ESCALATION_SIGNALS, 0)
+        AS CLAIM_ESCALATION_SIGNALS,
+
+    COALESCE(A.PAYMENT_ISSUE_SIGNALS, 0)
+        AS PAYMENT_ISSUE_SIGNALS,
+
+    COALESCE(A.HAS_CANCELLATION_INTENT, FALSE)
+        AS HAS_CANCELLATION_INTENT,
+
+    A.LATEST_SENTIMENT_SCORE,
+    A.LATEST_SENTIMENT_LABEL,
+    A.LATEST_INTENT,
+    A.LATEST_URGENCY,
+
+    COALESCE(A.RECENT_NEGATIVE_INTERACTIONS, 0)
+        AS RECENT_NEGATIVE_INTERACTIONS,
+
+    COALESCE(A.RECENT_HIGH_URGENCY_INTERACTIONS, 0)
+        AS RECENT_HIGH_URGENCY_INTERACTIONS,
+
+    COALESCE(A.RECENT_CANCELLATION_SIGNALS, 0)
+        AS RECENT_CANCELLATION_SIGNALS,
+
+    (
+        COALESCE(A.RECENT_NEGATIVE_INTERACTIONS, 0)
+        +
+        COALESCE(A.RECENT_HIGH_URGENCY_INTERACTIONS, 0)
+        +
+        (
+            2 *
+            COALESCE(A.RECENT_CANCELLATION_SIGNALS, 0)
+        )
+    ) AS INTERACTION_RISK_VELOCITY,
+
+    CASE
+
+        WHEN COALESCE(A.RECENT_CANCELLATION_SIGNALS, 0) > 0
+             AND COALESCE(A.RECENT_HIGH_URGENCY_INTERACTIONS, 0) > 0
+            THEN 'RAPIDLY_DETERIORATING'
+
+        WHEN COALESCE(A.RECENT_NEGATIVE_INTERACTIONS, 0) >= 2
+            THEN 'DETERIORATING'
+
+        WHEN COALESCE(A.RECENT_NEGATIVE_INTERACTIONS, 0) = 1
+            THEN 'WATCH'
+
+        ELSE 'STABLE'
+
+    END AS CUSTOMER_HEALTH_STATUS
+
+FROM INSURE360_DB.ANALYTICS.VW_CUSTOMER_360 C
+
+LEFT JOIN CUSTOMER_AI A
+    ON C.CUSTOMER_ID = A.CUSTOMER_ID;
+	
+	create or replace view INSURE360_DB.ANALYTICS.VW_CUSTOMER_360(
+	CUSTOMER_ID,
+	CUSTOMER_NAME,
+	DATE_OF_BIRTH,
+	GENDER,
+	CITY,
+	REGION,
+	JOIN_DATE,
+	CUSTOMER_SEGMENT,
+	TOTAL_POLICIES,
+	ACTIVE_POLICIES,
+	TOTAL_PREMIUM,
+	ACTIVE_PREMIUM,
+	NEXT_POLICY_END_DATE,
+	TOTAL_CLAIMS,
+	OPEN_CLAIMS,
+	TOTAL_CLAIM_AMOUNT,
+	TOTAL_SETTLEMENT_AMOUNT,
+	OPEN_CLAIM_AMOUNT,
+	TOTAL_COMPLAINTS,
+	OPEN_COMPLAINTS,
+	HIGH_PRIORITY_COMPLAINTS,
+	TOTAL_PAYMENTS,
+	OVERDUE_PAYMENTS,
+	TOTAL_PAYMENT_AMOUNT,
+	OVERDUE_PAYMENT_AMOUNT,
+	DAYS_TO_RENEWAL
+) as
+
+WITH POLICY_AGG AS (
+    SELECT
+        CUSTOMER_ID,
+
+        COUNT(DISTINCT POLICY_ID) AS TOTAL_POLICIES,
+
+        COUNT_IF(
+            UPPER(POLICY_STATUS) = 'ACTIVE'
+        ) AS ACTIVE_POLICIES,
+
+        SUM(PREMIUM_AMOUNT) AS TOTAL_PREMIUM,
+
+        SUM(
+            CASE
+                WHEN UPPER(POLICY_STATUS) = 'ACTIVE'
+                THEN PREMIUM_AMOUNT
+                ELSE 0
+            END
+        ) AS ACTIVE_PREMIUM,
+
+        MIN(
+            CASE
+                WHEN UPPER(POLICY_STATUS) = 'ACTIVE'
+                THEN POLICY_END_DATE
+            END
+        ) AS NEXT_POLICY_END_DATE
+
+    FROM INSURE360_DB.RAW.POLICIES
+    GROUP BY CUSTOMER_ID
+),
+
+CLAIM_AGG AS (
+    SELECT
+        CUSTOMER_ID,
+
+        COUNT(DISTINCT CLAIM_ID) AS TOTAL_CLAIMS,
+
+        COUNT_IF(
+            UPPER(CLAIM_STATUS) IN ('OPEN', 'PENDING', 'IN_PROGRESS')
+        ) AS OPEN_CLAIMS,
+
+        SUM(CLAIM_AMOUNT) AS TOTAL_CLAIM_AMOUNT,
+
+        SUM(
+            COALESCE(SETTLEMENT_AMOUNT, 0)
+        ) AS TOTAL_SETTLEMENT_AMOUNT,
+
+        SUM(
+            CASE
+                WHEN UPPER(CLAIM_STATUS) IN ('OPEN', 'PENDING', 'IN_PROGRESS')
+                THEN CLAIM_AMOUNT
+                ELSE 0
+            END
+        ) AS OPEN_CLAIM_AMOUNT
+
+    FROM INSURE360_DB.RAW.CLAIMS
+    GROUP BY CUSTOMER_ID
+),
+
+COMPLAINT_AGG AS (
+    SELECT
+        CUSTOMER_ID,
+
+        COUNT(DISTINCT COMPLAINT_ID) AS TOTAL_COMPLAINTS,
+
+        COUNT_IF(
+            UPPER(STATUS) IN ('OPEN', 'PENDING', 'IN_PROGRESS')
+        ) AS OPEN_COMPLAINTS,
+
+        COUNT_IF(
+            UPPER(PRIORITY) IN ('HIGH', 'CRITICAL')
+        ) AS HIGH_PRIORITY_COMPLAINTS
+
+    FROM INSURE360_DB.RAW.COMPLAINTS
+    GROUP BY CUSTOMER_ID
+),
+
+PAYMENT_AGG AS (
+    SELECT
+        CUSTOMER_ID,
+
+        COUNT(DISTINCT PAYMENT_ID) AS TOTAL_PAYMENTS,
+
+        COUNT_IF(
+            UPPER(PAYMENT_STATUS) IN ('OVERDUE', 'LATE', 'PENDING')
+        ) AS OVERDUE_PAYMENTS,
+
+        SUM(AMOUNT) AS TOTAL_PAYMENT_AMOUNT,
+
+        SUM(
+            CASE
+                WHEN UPPER(PAYMENT_STATUS) IN ('OVERDUE', 'LATE', 'PENDING')
+                THEN AMOUNT
+                ELSE 0
+            END
+        ) AS OVERDUE_PAYMENT_AMOUNT
+
+    FROM INSURE360_DB.RAW.PAYMENTS
+    GROUP BY CUSTOMER_ID
+)
+
+SELECT
+    C.CUSTOMER_ID,
+    C.CUSTOMER_NAME,
+    C.DATE_OF_BIRTH,
+    C.GENDER,
+    C.CITY,
+    C.REGION,
+    C.JOIN_DATE,
+    C.CUSTOMER_SEGMENT,
+
+    COALESCE(P.TOTAL_POLICIES, 0) AS TOTAL_POLICIES,
+    COALESCE(P.ACTIVE_POLICIES, 0) AS ACTIVE_POLICIES,
+    COALESCE(P.TOTAL_PREMIUM, 0) AS TOTAL_PREMIUM,
+    COALESCE(P.ACTIVE_PREMIUM, 0) AS ACTIVE_PREMIUM,
+    P.NEXT_POLICY_END_DATE,
+
+    COALESCE(CL.TOTAL_CLAIMS, 0) AS TOTAL_CLAIMS,
+    COALESCE(CL.OPEN_CLAIMS, 0) AS OPEN_CLAIMS,
+    COALESCE(CL.TOTAL_CLAIM_AMOUNT, 0) AS TOTAL_CLAIM_AMOUNT,
+    COALESCE(CL.TOTAL_SETTLEMENT_AMOUNT, 0) AS TOTAL_SETTLEMENT_AMOUNT,
+    COALESCE(CL.OPEN_CLAIM_AMOUNT, 0) AS OPEN_CLAIM_AMOUNT,
+
+    COALESCE(CM.TOTAL_COMPLAINTS, 0) AS TOTAL_COMPLAINTS,
+    COALESCE(CM.OPEN_COMPLAINTS, 0) AS OPEN_COMPLAINTS,
+    COALESCE(CM.HIGH_PRIORITY_COMPLAINTS, 0) AS HIGH_PRIORITY_COMPLAINTS,
+
+    COALESCE(PA.TOTAL_PAYMENTS, 0) AS TOTAL_PAYMENTS,
+    COALESCE(PA.OVERDUE_PAYMENTS, 0) AS OVERDUE_PAYMENTS,
+    COALESCE(PA.TOTAL_PAYMENT_AMOUNT, 0) AS TOTAL_PAYMENT_AMOUNT,
+    COALESCE(PA.OVERDUE_PAYMENT_AMOUNT, 0) AS OVERDUE_PAYMENT_AMOUNT,
+
+    CASE
+        WHEN P.NEXT_POLICY_END_DATE IS NULL THEN NULL
+        ELSE DATEDIFF(
+            'day',
+            CURRENT_DATE(),
+            P.NEXT_POLICY_END_DATE
+        )
+    END AS DAYS_TO_RENEWAL
+
+FROM INSURE360_DB.RAW.CUSTOMERS C
+
+LEFT JOIN POLICY_AGG P
+    ON C.CUSTOMER_ID = P.CUSTOMER_ID
+
+LEFT JOIN CLAIM_AGG CL
+    ON C.CUSTOMER_ID = CL.CUSTOMER_ID
+
+LEFT JOIN COMPLAINT_AGG CM
+    ON C.CUSTOMER_ID = CM.CUSTOMER_ID
+
+LEFT JOIN PAYMENT_AGG PA
+    ON C.CUSTOMER_ID = PA.CUSTOMER_ID;
+	
+	create or replace semantic view INSURE360_DB.ANALYTICS.SV_CUSTOMER_360
+	tables (
+		CUSTOMER as INSURE360_DB.ANALYTICS.VW_NEXT_BEST_ACTION primary key (CUSTOMER_ID)
+	)
+	facts (
+		CUSTOMER.RISK_SCORE as CUSTOMER.RISK_SCORE,
+		CUSTOMER.TOTAL_PREMIUM as CUSTOMER.TOTAL_PREMIUM,
+		CUSTOMER.OPEN_CLAIMS as CUSTOMER.OPEN_CLAIMS,
+		CUSTOMER.OPEN_COMPLAINTS as CUSTOMER.OPEN_COMPLAINTS,
+		CUSTOMER.OVERDUE_PAYMENTS as CUSTOMER.OVERDUE_PAYMENTS,
+		CUSTOMER.DAYS_TO_RENEWAL as CUSTOMER.DAYS_TO_RENEWAL,
+		CUSTOMER.ACTIVE_POLICIES as CUSTOMER.ACTIVE_POLICIES,
+		CUSTOMER.NEGATIVE_INTERACTIONS as CUSTOMER.NEGATIVE_INTERACTIONS,
+		CUSTOMER.CANCELLATION_SIGNALS as CUSTOMER.CANCELLATION_SIGNALS,
+		CUSTOMER.HIGH_URGENCY_INTERACTIONS as CUSTOMER.HIGH_URGENCY_INTERACTIONS,
+		CUSTOMER.ESTIMATED_PREMIUM_AT_RISK as CUSTOMER.ESTIMATED_PREMIUM_AT_RISK,
+		CUSTOMER.RECENT_NEGATIVE_INTERACTIONS as CUSTOMER.RECENT_NEGATIVE_INTERACTIONS,
+		CUSTOMER.RECENT_HIGH_URGENCY_INTERACTIONS as CUSTOMER.RECENT_HIGH_URGENCY_INTERACTIONS,
+		CUSTOMER.RECENT_CANCELLATION_SIGNALS as CUSTOMER.RECENT_CANCELLATION_SIGNALS,
+		CUSTOMER.INTERACTION_RISK_VELOCITY as CUSTOMER.INTERACTION_RISK_VELOCITY
+	)
+	dimensions (
+		CUSTOMER.CUSTOMER_ID as CUSTOMER.CUSTOMER_ID,
+		CUSTOMER.CUSTOMER_NAME as CUSTOMER.CUSTOMER_NAME,
+		CUSTOMER.CUSTOMER_SEGMENT as CUSTOMER.CUSTOMER_SEGMENT,
+		CUSTOMER.RISK_LEVEL as CUSTOMER.RISK_LEVEL,
+		CUSTOMER.RISK_REASON as CUSTOMER.RISK_REASON,
+		CUSTOMER.NEXT_BEST_ACTION as CUSTOMER.NEXT_BEST_ACTION,
+		CUSTOMER.ACTION_REASON as CUSTOMER.ACTION_REASON,
+		CUSTOMER.CUSTOMER_HEALTH_STATUS as CUSTOMER.CUSTOMER_HEALTH_STATUS,
+		CUSTOMER.ACTION_PRIORITY as CUSTOMER.ACTION_PRIORITY
+	)
+	metrics (
+		CUSTOMER.TOTAL_CUSTOMERS as COUNT(DISTINCT CUSTOMER.CUSTOMER_ID),
+		CUSTOMER.HIGH_RISK_CUSTOMERS as COUNT_IF(
+            CUSTOMER.RISK_LEVEL = 'HIGH'
+        ),
+		CUSTOMER.MEDIUM_RISK_CUSTOMERS as COUNT_IF(
+            CUSTOMER.RISK_LEVEL = 'MEDIUM'
+        ),
+		CUSTOMER.LOW_RISK_CUSTOMERS as COUNT_IF(
+            CUSTOMER.RISK_LEVEL = 'LOW'
+        ),
+		CUSTOMER.AVERAGE_RISK_SCORE as AVG(CUSTOMER.RISK_SCORE),
+		CUSTOMER.TOTAL_PREMIUM_AMOUNT as SUM(CUSTOMER.TOTAL_PREMIUM),
+		CUSTOMER.PREMIUM_AT_RISK as SUM(
+            IFF(
+                CUSTOMER.RISK_LEVEL = 'HIGH',
+                CUSTOMER.TOTAL_PREMIUM,
+                0
+            )
+        ),
+		CUSTOMER.CUSTOMERS_WITH_CANCELLATION_INTENT as COUNT_IF(
+            CUSTOMER.CANCELLATION_SIGNALS > 0
+        ),
+		CUSTOMER.CUSTOMERS_WITH_OPEN_CLAIMS as COUNT_IF(
+            CUSTOMER.OPEN_CLAIMS > 0
+        ),
+		CUSTOMER.CUSTOMERS_WITH_OPEN_COMPLAINTS as COUNT_IF(
+            CUSTOMER.OPEN_COMPLAINTS > 0
+        ),
+		CUSTOMER.CLAIM_ESCALATION_CUSTOMERS as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'CLAIM_ESCALATION'
+        ),
+		CUSTOMER.RETENTION_CUSTOMERS as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'RETENTION_CALL'
+        ),
+		CUSTOMER.CROSS_SELL_OPPORTUNITIES as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'CROSS_SELL'
+        ),
+		CUSTOMER.TOTAL_ESTIMATED_PREMIUM_AT_RISK as SUM(CUSTOMER.ESTIMATED_PREMIUM_AT_RISK),
+		CUSTOMER.SERVICE_RECOVERY_CUSTOMERS as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'SERVICE_RECOVERY'
+        ),
+		CUSTOMER.PAYMENT_REMINDER_CUSTOMERS as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'PAYMENT_REMINDER'
+        ),
+		CUSTOMER.RENEWAL_OUTREACH_CUSTOMERS as COUNT_IF(
+            CUSTOMER.NEXT_BEST_ACTION = 'RENEWAL_OUTREACH'
+        ),
+		CUSTOMER.RAPIDLY_DETERIORATING_CUSTOMERS as COUNT_IF(
+            CUSTOMER.CUSTOMER_HEALTH_STATUS =
+                'RAPIDLY_DETERIORATING'
+        ),
+		CUSTOMER.DETERIORATING_CUSTOMERS as COUNT_IF(
+            CUSTOMER.CUSTOMER_HEALTH_STATUS =
+                'DETERIORATING'
+        ),
+		CUSTOMER.CUSTOMERS_REQUIRING_CRITICAL_ACTION as COUNT_IF(
+            CUSTOMER.ACTION_PRIORITY = 'CRITICAL'
+        ),
+		CUSTOMER.CUSTOMERS_REQUIRING_HIGH_PRIORITY_ACTION as COUNT_IF(
+            CUSTOMER.ACTION_PRIORITY = 'HIGH'
+        )
+	)
+	comment='Customer 360, Customer Health, Risk, Recovery and Next Best Action semantic view for Insure360 AI';

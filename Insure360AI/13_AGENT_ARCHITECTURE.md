@@ -1,61 +1,48 @@
-# Insure360 AI – Agent Architecture
+# Insure360 — Agent Architecture
 
-## Agent
-`INSURE360_DB.AI.INSURE360_AGENT`
+## Goal
+Provide an AI assistant with governed access to customer intelligence, risk, recovery context, and next-best-action outputs.
 
-## Purpose
-Provides a natural-language conversational interface over governed Customer 360 analytics.
+## Suggested logical architecture
 
-## Core Components
 ```text
-Business User
-     |
-     v
-INSURE360_AGENT
-     |
-     +--> Cortex Analyst
-     |       |
-     |       v
-     |   SV_CUSTOMER_360
-     |       |
-     |       v
-     |   Governed Metrics
-     |
-     +--> Optional transcript retrieval
-             |
-             v
-        Cortex Search
-             |
-             v
-        Interaction Evidence
+User
+  |
+  v
+Agent / Co-work Assistant
+  |
+  +--> Semantic layer: SV_CUSTOMER_360
+  |
+  +--> Analytical views:
+  |      VW_NEXT_BEST_ACTION
+  |      VW_CUSTOMER_RISK
+  |      VW_CUSTOMER_INTELLIGENCE
+  |      VW_CUSTOMER_360
+  |      VW_INTERACTION_RECOVERY
+  |
+  +--> Retrieval layer:
+         Interaction transcripts / summaries
 ```
 
-## Semantic Model
-`INSURE360_DB.ANALYTICS.SV_CUSTOMER_360`
+## Agent responsibilities
+1. Identify the customer or customer cohort.
+2. Retrieve structured customer metrics from the semantic/analytical layer.
+3. Retrieve supporting interaction context when needed.
+4. Explain risk and recommended action using the supplied business rules.
+5. Distinguish observed facts from recommendations.
+6. Avoid inventing missing customer, claim, policy, or interaction details.
 
-## Semantic Source
-`INSURE360_DB.ANALYTICS.VW_CUSTOMER_SEMANTIC_SOURCE`
-
-## Example Questions
-- How many customers are high risk?
-- How much premium is at risk?
-- Which customers should we prioritize?
-- Which customers are showing cancellation intent?
-- Which customers require claim escalation?
-- Which customers need retention calls?
-- What are our cross-sell opportunities?
-- Why is a particular customer high risk?
-
-## Agent Behavior
-1. Interpret the business question.
-2. Use governed semantic definitions for analytical questions.
-3. Retrieve transcript evidence when the question asks about customer interactions.
-4. Clearly distinguish calculated metrics from AI-derived interaction signals.
-5. Return concise business explanations.
-6. Do not invent customer facts that are absent from Snowflake.
+## High-value workflows
+- Customer health review
+- Retention prioritization
+- Claim escalation triage
+- Service recovery
+- Payment follow-up
+- Renewal outreach
+- Executive portfolio risk analysis
 
 ## Guardrails
-- No unsupported customer attributes.
-- No opaque risk explanation.
-- Risk reason should trace to documented signals.
-- Next Best Action should come from the governed action logic.
+- Respect row-level/customer-level access controls configured outside these definitions.
+- Treat `NEXT_BEST_ACTION` as a rule-based recommendation, not an autonomous commitment.
+- Surface the reason fields when explaining a recommendation.
+- Use current source data when available.

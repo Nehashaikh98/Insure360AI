@@ -1,85 +1,71 @@
-# Insure360 AI – Semantic View Specification
+# Insure360 — Semantic Views
 
-## Semantic View
-`INSURE360_DB.ANALYTICS.SV_CUSTOMER_360`
+## Analytical views
 
-### Source
-`INSURE360_DB.ANALYTICS.VW_CUSTOMER_SEMANTIC_SOURCE`
+### `VW_CUSTOMER_360`
+Customer-level operational aggregation across customers, policies, claims, complaints, and payments.
 
-### Grain
-One row per customer.
+It provides:
+- Policy counts and premium
+- Next policy end date
+- Claim counts and amounts
+- Complaint counts and priority
+- Payment counts and overdue amounts
+- Days to renewal
 
-## Dimensions
-- CUSTOMER_ID – unique customer
-- CUSTOMER_NAME – customer full name
-- CUSTOMER_SEGMENT – customer business segment
-- RISK_LEVEL – customer risk category
-- RISK_REASON – risk explanation
-- NEXT_BEST_ACTION – recommended action
-- ACTION_REASON – recommendation explanation
+### `VW_CUSTOMER_INTELLIGENCE`
+Extends `VW_CUSTOMER_360` with AI interaction intelligence:
+- Sentiment
+- Intent
+- Urgency
+- Cancellation signals
+- Recent negative/high-urgency/cancellation counts
+- Interaction risk velocity
+- Customer health status
 
-## Facts
-- RISK_SCORE
-- TOTAL_PREMIUM
-- OPEN_CLAIMS
-- OPEN_COMPLAINTS
-- OVERDUE_PAYMENTS
-- DAYS_TO_RENEWAL
-- ACTIVE_POLICIES
-- NEGATIVE_INTERACTIONS
-- CANCELLATION_SIGNALS
-- HIGH_URGENCY_INTERACTIONS
+The source SQL deduplicates raw interactions by latest `INTERACTION_DATE` and AI insights by latest `PROCESSED_AT` per interaction.
 
-## Governed Metrics
+### `VW_CUSTOMER_RISK`
+Adds a 0–100 customer risk score, risk level, and human-readable risk reason.
 
-### TOTAL_CUSTOMERS
-Number of distinct customers.
+Risk components encoded in the supplied SQL:
+- Open claim: +20
+- Open complaint: +15
+- Overdue payment: +10
+- Negative interaction: +15
+- Cancellation signal: +30
+- High urgency: +10
+- Health deterioration: +5 / +10 / +15 depending on state
 
-### HIGH_RISK_CUSTOMERS
-Customers with RISK_LEVEL = HIGH.
+The score is capped at 100.
 
-### MEDIUM_RISK_CUSTOMERS
-Customers with RISK_LEVEL = MEDIUM.
+### `VW_NEXT_BEST_ACTION`
+Combines customer intelligence and risk to produce:
+- Intervention score/tier
+- Estimated premium at risk
+- Next best action
+- Action type
+- Priority
+- Recommended channel
+- SLA
+- Action reason
 
-### LOW_RISK_CUSTOMERS
-Customers with RISK_LEVEL = LOW.
+### `VW_INTERACTION_RECOVERY`
+Provides interaction lifecycle context:
+- Previous interaction
+- Previous sentiment
+- Sentiment trend
+- Issue relationship
+- Resolution status
+- Resolution flag
+- Human-readable resolution reason
 
-### AVERAGE_RISK_SCORE
-Average customer risk score.
+### `SV_CUSTOMER_360`
+Semantic view built over `VW_NEXT_BEST_ACTION`.
 
-### TOTAL_PREMIUM_AMOUNT
-Total portfolio premium.
+It exposes:
+- Customer dimensions
+- Risk and intervention facts
+- Business metrics for portfolio-level questions
 
-### PREMIUM_AT_RISK
-Premium belonging to HIGH-risk customers.
-
-### CUSTOMERS_WITH_CANCELLATION_INTENT
-Customers having at least one cancellation signal.
-
-### CUSTOMERS_WITH_OPEN_CLAIMS
-Customers having unresolved claims.
-
-### CUSTOMERS_WITH_OPEN_COMPLAINTS
-Customers having unresolved complaints.
-
-### CLAIM_ESCALATION_CUSTOMERS
-Customers recommended for claim escalation.
-
-### RETENTION_CUSTOMERS
-Customers recommended for retention calls.
-
-### CROSS_SELL_OPPORTUNITIES
-Customers recommended for cross-sell.
-
-## Validation Questions
-1. How many customers are high risk?
-2. How much premium is at risk?
-3. Which customers should we prioritize?
-4. Which customers are showing cancellation intent?
-5. Which customers require claim escalation?
-6. Which customers need retention calls?
-7. What are our cross-sell opportunities?
-8. Why is a particular customer high risk?
-
-## Implementation Note
-Create the Snowflake Semantic View using the account's currently supported semantic-view DDL/API. Keep the business definitions above as the authoritative specification.
+See `06_DDL_SPEC.sql` for the supplied SQL definitions.

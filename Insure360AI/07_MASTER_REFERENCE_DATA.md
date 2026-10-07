@@ -1,76 +1,72 @@
-# Insure360 AI – Master Reference Data
+# Insure360 — Master / Reference Data
 
-## Customer Segments
-- Premium
-- Standard
+The supplied DDL contains descriptive/status fields but no separate reference-data tables. The following values are therefore documented as **code/value conventions inferred from the supplied analytical SQL**, not as authoritative master-data tables.
 
-## Policy Types
-- Motor
-- Health
-- Travel
-- Home
-- Life
+## Status conventions used by views
 
-## Policy Status
-- ACTIVE
-- LAPSED
-- CANCELLED
+### Claim status
+Open claim logic:
+- `OPEN`
+- `PENDING`
+- `IN_PROGRESS`
 
-## Claim Status
-- OPEN
-- APPROVED
-- REJECTED
-- CLOSED
+### Complaint status
+Open complaint logic:
+- `OPEN`
+- `PENDING`
+- `IN_PROGRESS`
 
-## Claim Reasons
-- ACCIDENT
-- MEDICAL
-- PROPERTY_DAMAGE
-- TRAVEL_DISRUPTION
-- THEFT
+### Payment status
+Overdue payment logic:
+- `OVERDUE`
+- `LATE`
+- `PENDING`
 
-## Complaint Status
-- OPEN
-- IN_PROGRESS
-- RESOLVED
+### Complaint priority
+High-priority complaint logic:
+- `HIGH`
+- `CRITICAL`
 
-## Complaint Types
-- CLAIM_DELAY
-- SERVICE_QUALITY
-- BILLING
-- POLICY
-- RENEWAL
+### Interaction sentiment
+Negative interaction logic:
+- `NEGATIVE`
 
-## Payment Status
-- PAID
-- PENDING
-- OVERDUE
+### Interaction urgency
+High urgency logic:
+- `HIGH`
 
-## Interaction Channels
-- CALL
-- EMAIL
-- CHAT
+### AI intents used by customer intelligence
+- `CLAIM_ESCALATION`
+- `PAYMENT_ISSUE`
 
-## Sentiment
-- POSITIVE
-- NEUTRAL
-- NEGATIVE
+### Customer health status
+- `RAPIDLY_DETERIORATING`
+- `DETERIORATING`
+- `WATCH`
+- `STABLE`
 
-## Urgency
-- LOW
-- MEDIUM
-- HIGH
+### Risk level
+- `HIGH`
+- `MEDIUM`
+- `LOW`
 
-## Next Best Actions
-- RETENTION_CALL
-- CLAIM_ESCALATION
-- CROSS_SELL
-- PAYMENT_REMINDER
-- SERVICE_RECOVERY
-- RENEWAL_OUTREACH
-- NO_IMMEDIATE_ACTION
+### Intervention tier
+- `IMMEDIATE`
+- `HIGH`
+- `MEDIUM`
+- `LOW`
 
-## Risk Levels
-- HIGH: >= 60
-- MEDIUM: 30–59
-- LOW: < 30
+### Next-best-action values
+- `CLAIM_ESCALATION`
+- `RETENTION_CALL`
+- `SERVICE_RECOVERY`
+- `PAYMENT_REMINDER`
+- `RENEWAL_OUTREACH`
+- `CROSS_SELL`
+- `NO_IMMEDIATE_ACTION`
+
+### Recommended channels
+- `PHONE`
+- `EMAIL`
+- `PHONE_OR_EMAIL`
+- `NO_CONTACT_REQUIRED`

@@ -1,37 +1,40 @@
-# Insure360 AI – Cortex Search Specification
+# Insure360 — Cortex Search / Retrieval Design
 
 ## Purpose
-Provide retrieval over unstructured customer interaction content when the application needs evidence from transcripts.
+The supplied schema contains interaction transcripts in `RAW.CUSTOMER_INTERACTIONS.TRANSCRIPT` and AI-generated interaction summaries in `AI.INTERACTION_INSIGHTS.INTERACTION_SUMMARY` and `RESOLUTION_SUMMARY`.
 
-## Recommended Source
-`INSURE360_DB.RAW.INTERACTIONS`
+These fields are natural candidates for semantic retrieval.
 
-Primary searchable fields:
-- CUSTOMER_ID
-- INTERACTION_ID
-- INTERACTION_DATE
-- CHANNEL
-- TRANSCRIPT
+## Recommended searchable content
 
-## Example Retrieval Questions
-- What did the customer say about cancellation?
-- Find recent interactions mentioning unresolved claims.
-- Show interactions with complaints about service quality.
-- Find the latest conversation for customer CUST-1001.
+Primary:
+- `CUSTOMER_INTERACTIONS.TRANSCRIPT`
 
-## Search Metadata
-Use customer and interaction metadata as filters:
-- CUSTOMER_ID
-- CHANNEL
-- INTERACTION_DATE
+Supporting:
+- `INTERACTION_SUMMARY`
+- `RESOLUTION_SUMMARY`
+- `CLAIM_DESCRIPTION`
 
-## AI Enrichment
-Interaction transcripts should also be processed into:
-- SENTIMENT
-- SENTIMENT_SCORE
-- AI_CLASSIFICATION
-- CANCELLATION_SIGNAL
-- URGENCY
+## Recommended metadata filters
+- `CUSTOMER_ID`
+- `INTERACTION_ID`
+- `INTERACTION_DATE`
+- `CHANNEL`
+- `INTERACTION_TYPE`
+- `AGENT_ID`
+- `SENTIMENT_LABEL`
+- `INTENT`
+- `URGENCY`
+- `CANCELLATION_INTENT`
+- `ISSUE_RELATIONSHIP`
+- `RESOLUTION_STATUS`
 
-## Design Principle
-Use Cortex Search for transcript evidence/retrieval. Use the governed customer semantic layer for customer-level analytical metrics.
+## Example retrieval questions
+- Find prior interactions for a customer mentioning a claim delay.
+- Find interactions with cancellation language.
+- Find prior unresolved issues related to the current complaint.
+- Find resolution summaries for similar claims.
+- Find high-urgency interactions for a customer.
+
+## Important implementation note
+No Cortex Search service definition was included in the supplied SQL. This document therefore specifies the retrieval design rather than claiming that a Cortex Search service already exists.
